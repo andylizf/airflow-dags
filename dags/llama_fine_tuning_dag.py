@@ -101,10 +101,10 @@ with DAG(
             )
             """
         ],
-        resources={
-            'request_memory': '8Gi',
-            'request_cpu': '2',
-            'request_ephemeral_storage': '8Gi'
+        container_resources={
+            'memory': '8Gi',
+            'cpu': '2',
+            'ephemeral-storage': '8Gi'
         },
         volume_mounts=volume_mounts,
         volumes=volumes,
@@ -153,11 +153,11 @@ with DAG(
             )
             """
         ],
-        resources={
-            'request_memory': '120Gi',
-            'request_cpu': '44',
-            'request_ephemeral_storage': '100Gi',
-            'limits': GPU_LIMITS
+        container_resources={
+            'memory': '120Gi',
+            'cpu': '44',
+            'ephemeral-storage': '100Gi',
+            'nvidia.com/gpu': '8'
         },
         volume_mounts=volume_mounts,
         volumes=volumes,
@@ -194,10 +194,10 @@ with DAG(
             )
             """
         ],
-        resources={
-            'request_memory': '10Gi',
-            'request_cpu': '1',
-            'request_ephemeral_storage': '64Gi'
+        container_resources={
+            'memory': '10Gi',
+            'cpu': '1',
+            'ephemeral-storage': '64Gi'
         },
         volume_mounts=volume_mounts,
         volumes=volumes,
