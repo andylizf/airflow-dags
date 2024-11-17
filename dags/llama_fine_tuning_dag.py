@@ -15,11 +15,11 @@ from kubernetes.client import models as k8s
 
 # 基础配置
 DEFAULT_REGISTRY = "ghcr.io/unionai-oss"
-IMAGE_TAG = "latest" # 根据需要修改
+IMAGE_TAG = "n0d4nltgwbb_iicwbsyfvq.."
 BASE_IMAGE = f"{DEFAULT_REGISTRY}/flyte-llama-qlora:{IMAGE_TAG}"
 
 # GCS路径配置
-GCS_BUCKET = "your-gcs-bucket"  # 替换为你的GCS bucket
+GCS_BUCKET = "airflow-llama-tuning-skypilot-375902"
 DATASET_PATH = f"gs://{GCS_BUCKET}/llama/dataset"
 MODEL_OUTPUT_PATH = f"gs://{GCS_BUCKET}/llama/models"
 
