@@ -173,7 +173,7 @@ model = train(
 # Upload model to GCS
 for file_path in Path(config.output_dir).rglob("*"):
     if file_path.is_file():
-        blob_path = f"llama/models/{task_id}/{file_path.relative_to(config.output_dir)}"
+        blob_path = f"llama/models/{{task_id}}/{{file_path.relative_to(config.output_dir)}}"
         blob = bucket.blob(blob_path)
         blob.upload_from_filename(str(file_path))
 """
@@ -255,7 +255,10 @@ def batch_size_tuning_workflow(
     
     train_tasks: List[KubernetesPodOperator] = []
     for batch_size in batch_sizes:
-        config_copy = replace(config, batch_size=batch_size)
+        # Create a copy of the config dictionary and update the batch_size
+        config_copy = config.copy()
+        config_copy['batch_size'] = batch_size
+        
         train_task = train_model(
             dag=dag,
             task_id=f"train_batch_size_{batch_size}",
