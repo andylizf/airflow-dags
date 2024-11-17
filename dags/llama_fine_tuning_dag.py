@@ -88,7 +88,7 @@ sys.path.append("/opt/airflow/dags")
 from llama_tuning.dataset import create_dataset, REPO_URLS
 from google.cloud import storage
 
-urls = {[*REPO_URLS, *(additional_urls or [])]}
+urls = REPO_URLS + {additional_urls or []}
 working_dir = Path('/tmp/working_dir')
 temp_output_dir = working_dir / "dataset"
 repo_cache_dir = working_dir / "repo_cache"
