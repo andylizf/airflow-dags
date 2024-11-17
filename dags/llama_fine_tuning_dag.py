@@ -24,9 +24,9 @@ GCS_BUCKET = "airflow-llama-tuning-skypilot-375902"
 DATASET_PATH = f"gs://{GCS_BUCKET}/llama/dataset"
 MODEL_OUTPUT_PATH = f"gs://{GCS_BUCKET}/llama/models"
 
-DATASET_CODE = read_module_code('airflow/dags/llama_tuning/dataset.py')
-TRAIN_CODE = read_module_code('airflow/dags/llama_tuning/train.py')
-PUBLISH_CODE = read_module_code('airflow/dags/llama_tuning/publish.py')
+DATASET_CODE = read_module_code('/opt/airflow/dags/repo/dags/llama_tuning/dataset.py')
+TRAIN_CODE = read_module_code('/opt/airflow/dags/repo/dags/llama_tuning/train.py')
+PUBLISH_CODE = read_module_code('/opt/airflow/dags/repo/dags/llama_tuning/publish.py')
 
 def create_dataset(dag: DAG, task_id: str, additional_urls: Optional[List[str]] = None) -> KubernetesPodOperator:
     """Create dataset task"""
