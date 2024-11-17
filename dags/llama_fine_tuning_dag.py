@@ -112,7 +112,7 @@ print("Dataset path: {DATASET_PATH}")"""
         ),
         is_delete_operator_pod=True,
         get_logs=True,
-        env=[
+        env_vars=[
             k8s.V1EnvVar(
                 name="GOOGLE_APPLICATION_CREDENTIALS",
                 value="/var/secrets/google/key.json"
