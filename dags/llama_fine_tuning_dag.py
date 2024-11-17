@@ -83,7 +83,7 @@ with DAG(
     create_dataset = KubernetesPodOperator(
         task_id='create_dataset',
         name='create-dataset',
-        namespace='default',
+        namespace='airflow',
         image=BASE_IMAGE,
         cmds=["python", "-c"],
         arguments=[
@@ -116,7 +116,7 @@ with DAG(
     train_model = KubernetesPodOperator(
         task_id='train_model',
         name='train-model',
-        namespace='default',
+        namespace='airflow',
         image=BASE_IMAGE,
         cmds=["python", "-c"],
         arguments=[
@@ -169,7 +169,7 @@ with DAG(
     publish_model = KubernetesPodOperator(
         task_id='publish_model',
         name='publish-model',
-        namespace='default',
+        namespace='airflow',
         image=BASE_IMAGE,
         cmds=["python", "-c"],
         arguments=[
