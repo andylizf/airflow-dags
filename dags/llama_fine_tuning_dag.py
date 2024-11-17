@@ -228,7 +228,7 @@ config = TrainerConfig(**{config})
 publish_to_hf_hub(
     local_model_dir,
     config,
-    hf_auth_token='{Variable.get("HF_AUTH_TOKEN")}'
+    hf_auth_token='{Variable.get("hf-auth-token")}'
 )
 """
         ],
