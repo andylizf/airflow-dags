@@ -110,9 +110,11 @@ print("Dataset path: {DATASET_PATH}")"""
         is_delete_operator_pod=True,
         get_logs=True,
         service_account_name="default",
-        pod_template_annotations={
-            "iam.gke.io/gcp-service-account": "88945870421-compute@developer.gserviceaccount.com"
-        },
+        pod_template_annotations=k8s.V1ObjectMeta(
+            annotations={
+                "iam.gke.io/gcp-service-account": "88945870421-compute@developer.gserviceaccount.com"
+            }
+        ),
     )
 
 def train_model(
