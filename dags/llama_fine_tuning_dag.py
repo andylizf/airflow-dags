@@ -44,23 +44,12 @@ default_args = {
 # 创建volume mounts和volumes配置
 volume_mounts = [
     k8s.V1VolumeMount(
-        name="gcs-fuse-volume",
-        mount_path="/gcs",
-        read_only=False
-    ),
-    k8s.V1VolumeMount(
         name="dshm",
         mount_path="/dev/shm"
     )
 ]
 
 volumes = [
-    k8s.V1Volume(
-        name="gcs-fuse-volume",
-        persistent_volume_claim=k8s.V1PersistentVolumeClaimVolumeSource(
-            claim_name="gcs-fuse-pvc"
-        )
-    ),
     k8s.V1Volume(
         name="dshm",
         empty_dir=k8s.V1EmptyDirVolumeSource(
@@ -87,11 +76,11 @@ with DAG(
         image=BASE_IMAGE,
         cmds=["python", "-c"],
         arguments=[
-            """
+            f"""
             import flyte_llama.dataset as dataset
             from pathlib import Path
             
-            output_dir = Path('/gcs/dataset')
+            output_dir = '{DATASET_PATH}'
             repo_cache_dir = Path('/tmp/repo_cache')
             
             dataset.create_dataset(
@@ -178,10 +167,10 @@ with DAG(
             import flyte_llama.publish as publish
             import flyte_llama.train as train
             
-            model_dir = Path('/gcs/models')
+            model_dir = Path('{MODEL_OUTPUT_PATH}')
             config = train.TrainerConfig(
                 model_path='codellama/CodeLlama-7b-hf',
-                output_dir='/gcs/models',
+                output_dir=model_dir,
                 publish_config=train.PublishConfig(
                     repo_id='your-hf-repo-id'  # 替换为你的HuggingFace repo ID
                 )
