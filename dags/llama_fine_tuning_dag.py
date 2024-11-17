@@ -101,7 +101,7 @@ client = storage.Client()
 bucket = client.bucket("{GCS_BUCKET}")
 for file_path in temp_output_dir.rglob("*"):
     if file_path.is_file():
-        blob_path = f"llama/dataset/{file_path.relative_to(temp_output_dir)}"
+        blob_path = f"llama/dataset/{{file_path.relative_to(temp_output_dir)}}"
         blob = bucket.blob(blob_path)
         blob.upload_from_filename(str(file_path))
 
