@@ -1,14 +1,18 @@
 """LLama workflows for Airflow."""
 
 from datetime import timedelta, datetime
-from dataclasses import replace
 from pathlib import Path
 from typing import List, Optional, Any
+from textwrap import dedent
 
 from airflow import DAG
 from airflow.models import Variable
 from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
 from kubernetes.client import models as k8s
+
+def read_module_code(module_path: str) -> str:
+    with open(module_path, 'r') as f:
+        return f.read()
 
 # Base configuration
 DEFAULT_REGISTRY = "ghcr.io/unionai-oss"
@@ -20,55 +24,9 @@ GCS_BUCKET = "airflow-llama-tuning-skypilot-375902"
 DATASET_PATH = f"gs://{GCS_BUCKET}/llama/dataset"
 MODEL_OUTPUT_PATH = f"gs://{GCS_BUCKET}/llama/models"
 
-def setup_task(dag: DAG, task_id: str) -> KubernetesPodOperator:
-    """Install required packages"""
-    return KubernetesPodOperator(
-        task_id=task_id,
-        dag=dag,
-        name=task_id,
-        namespace='airflow',
-        image=BASE_IMAGE,
-        cmds=["python", "-c"],
-        arguments=[
-            """\
-import subprocess
-import sys
-from pathlib import Path
-
-packages = [
-    "accelerate",
-    "bitsandbytes",
-    "datasets",
-    "deepspeed==0.10.0",
-    "gitpython",
-    "huggingface_hub",
-    "mwparserfromhell",
-    "peft",
-    "pandera",
-    "pyyaml",
-    "sentencepiece",
-    "tokenizers",
-    "transformers",
-    "torch==2.0.1",
-    "wandb",
-    "google-cloud-storage"
-]
-
-subprocess.run(["pip", "install"] + packages, check=True)
-dags_dir = Path("/opt/airflow/dags")
-sys.path.append(str(dags_dir))
-"""
-        ],
-        container_resources=k8s.V1ResourceRequirements(
-            requests={
-                'memory': '4Gi',
-                'cpu': '1',
-                'ephemeral-storage': '8Gi'
-            }
-        ),
-        is_delete_operator_pod=True,
-        get_logs=True,
-    )
+DATASET_CODE = read_module_code('airflow/dags/llama_tuning/dataset.py')
+TRAIN_CODE = read_module_code('airflow/dags/llama_tuning/train.py')
+PUBLISH_CODE = read_module_code('airflow/dags/llama_tuning/publish.py')
 
 def create_dataset(dag: DAG, task_id: str, additional_urls: Optional[List[str]] = None) -> KubernetesPodOperator:
     """Create dataset task"""
@@ -80,33 +38,33 @@ def create_dataset(dag: DAG, task_id: str, additional_urls: Optional[List[str]] 
         image=BASE_IMAGE,
         cmds=["python", "-c"],
         arguments=[
-            f"""\
-from pathlib import Path
-import sys
-sys.path.append("/opt/airflow/dags")
+            dedent(f"""\
+            from pathlib import Path
+            from typing import List, Optional
+            from google.cloud import storage
 
-from llama_tuning.dataset import create_dataset, REPO_URLS
-from google.cloud import storage
+            # Inject dataset module code
+            {DATASET_CODE}
 
-urls = REPO_URLS + {additional_urls or []}
-working_dir = Path('/tmp/working_dir')
-temp_output_dir = working_dir / "dataset"
-repo_cache_dir = working_dir / "repo_cache"
+            urls = REPO_URLS + {additional_urls or []}
+            working_dir = Path('/tmp/working_dir')
+            temp_output_dir = working_dir / "dataset"
+            repo_cache_dir = working_dir / "repo_cache"
 
-# Create dataset locally first
-create_dataset(urls, temp_output_dir, repo_cache_dir)
+            # Create dataset locally first
+            create_dataset(urls, temp_output_dir, repo_cache_dir)
 
-# Upload to GCS
-client = storage.Client()
-bucket = client.bucket("{GCS_BUCKET}")
-for file_path in temp_output_dir.rglob("*"):
-    if file_path.is_file():
-        blob_path = f"llama/dataset/{{file_path.relative_to(temp_output_dir)}}"
-        blob = bucket.blob(blob_path)
-        blob.upload_from_filename(str(file_path))
+            # Upload to GCS
+            client = storage.Client()
+            bucket = client.bucket("{GCS_BUCKET}")
+            for file_path in temp_output_dir.rglob("*"):
+                if file_path.is_file():
+                    blob_path = f"llama/dataset/{{file_path.relative_to(temp_output_dir)}}"
+                    blob = bucket.blob(blob_path)
+                    blob.upload_from_filename(str(file_path))
 
-print("Dataset path: {DATASET_PATH}")
-"""
+            print("Dataset path: {DATASET_PATH}")
+            """)
         ],
         container_resources=k8s.V1ResourceRequirements(
             requests={
@@ -135,48 +93,49 @@ def train_model(
         image=BASE_IMAGE,
         cmds=["python", "-c"],
         arguments=[
-            f"""\
-import os
-import sys
-from pathlib import Path
-sys.path.append("/opt/airflow/dags")
+            dedent(f"""\
+            import os
+            from pathlib import Path
+            from typing import Optional, Any
+            from dataclasses import dataclass
+            from google.cloud import storage
 
-from llama_tuning.train import train, TrainerConfig
-from google.cloud import storage
+            # Inject train module code
+            {TRAIN_CODE}
 
-os.environ["WANDB_API_KEY"] = '{Variable.get("wandb-api-key")}'
-os.environ["WANDB_PROJECT"] = "unionai-flyte-llama"
-os.environ["WANDB_RUN_ID"] = "{task_id}"
-os.environ["TRANSFORMERS_CACHE"] = "/tmp"
-os.environ["PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION"] = "python"
-os.environ["TOKENIZERS_PARALLELISM"] = "true"
+            os.environ["WANDB_API_KEY"] = '{Variable.get("wandb-api-key")}'
+            os.environ["WANDB_PROJECT"] = "unionai-flyte-llama"
+            os.environ["WANDB_RUN_ID"] = "{task_id}"
+            os.environ["TRANSFORMERS_CACHE"] = "/tmp"
+            os.environ["PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION"] = "python"
+            os.environ["TOKENIZERS_PARALLELISM"] = "true"
 
-# Download dataset from GCS
-client = storage.Client()
-bucket = client.bucket("{GCS_BUCKET}")
-local_dataset_path = Path("/tmp/dataset")
-for blob in bucket.list_blobs(prefix="llama/dataset/"):
-    local_file = local_dataset_path / blob.name.replace("llama/dataset/", "")
-    local_file.parent.mkdir(parents=True, exist_ok=True)
-    blob.download_to_filename(str(local_file))
+            # Download dataset from GCS
+            client = storage.Client()
+            bucket = client.bucket("{GCS_BUCKET}")
+            local_dataset_path = Path("/tmp/dataset")
+            for blob in bucket.list_blobs(prefix="llama/dataset/"):
+                local_file = local_dataset_path / blob.name.replace("llama/dataset/", "")
+                local_file.parent.mkdir(parents=True, exist_ok=True)
+                blob.download_to_filename(str(local_file))
 
-config = TrainerConfig(**{config})
-config.data_dir = str(local_dataset_path)
-config.output_dir = "{MODEL_OUTPUT_PATH}/{task_id}"
+            config = TrainerConfig(**{config})
+            config.data_dir = str(local_dataset_path)
+            config.output_dir = "{MODEL_OUTPUT_PATH}/{task_id}"
 
-model = train(
-    config,
-    pretrained_adapter={pretrained_adapter},
-    hf_auth_token='{Variable.get("hf-auth-token")}'
-)
+            model = train(
+                config,
+                pretrained_adapter={pretrained_adapter},
+                hf_auth_token='{Variable.get("hf-auth-token")}'
+            )
 
-# Upload model to GCS
-for file_path in Path(config.output_dir).rglob("*"):
-    if file_path.is_file():
-        blob_path = f"llama/models/{{task_id}}/{{file_path.relative_to(config.output_dir)}}"
-        blob = bucket.blob(blob_path)
-        blob.upload_from_filename(str(file_path))
-"""
+            # Upload model to GCS
+            for file_path in Path(config.output_dir).rglob("*"):
+                if file_path.is_file():
+                    blob_path = f"llama/models/{{task_id}}/{{file_path.relative_to(config.output_dir)}}"
+                    blob = bucket.blob(blob_path)
+                    blob.upload_from_filename(str(file_path))
+            """)
         ],
         container_resources=k8s.V1ResourceRequirements(
             requests={
@@ -249,9 +208,7 @@ def batch_size_tuning_workflow(
     batch_sizes: List[int],
 ):
     """Batch size tuning workflow"""
-    setup = setup_task(dag, "setup_dependencies")
     dataset_task = create_dataset(dag, "create_dataset")
-    setup >> dataset_task # pylint: disable=pointless-statement
     
     train_tasks: List[KubernetesPodOperator] = []
     for batch_size in batch_sizes:
