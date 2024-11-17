@@ -112,7 +112,28 @@ print("Dataset path: {DATASET_PATH}")"""
         ),
         is_delete_operator_pod=True,
         get_logs=True,
-        service_account_name="88945870421-compute@developer.gserviceaccount.com",
+        env=[
+            k8s.V1EnvVar(
+                name="GOOGLE_APPLICATION_CREDENTIALS",
+                value="/var/secrets/google/key.json"
+            )
+        ],
+        volumes=[
+            k8s.V1Volume(
+                name="gcp-key",
+                secret=k8s.V1SecretVolumeSource(
+                    secret_name="gcp-key"
+                )
+            )
+        ],
+        volume_mounts=[
+            k8s.V1VolumeMount(
+                name="gcp-key",
+                mount_path="/var/secrets/google",
+                read_only=True
+            )
+        ],
+        service_account_name="default",
     )
 
 def train_model(
