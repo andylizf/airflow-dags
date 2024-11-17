@@ -76,19 +76,18 @@ with DAG(
         image=BASE_IMAGE,
         cmds=["python", "-c"],
         arguments=[
-            f"""
-            import flyte_llama.dataset as dataset
-            from pathlib import Path
-            
-            output_dir = '{DATASET_PATH}'
-            repo_cache_dir = Path('/tmp/repo_cache')
-            
-            dataset.create_dataset(
-                dataset.REPO_URLS,
-                output_dir,
-                repo_cache_dir
-            )
-            """
+            f"""\
+import flyte_llama.dataset as dataset
+from pathlib import Path
+
+output_dir = '{DATASET_PATH}'
+repo_cache_dir = Path('/tmp/repo_cache')
+
+dataset.create_dataset(
+    dataset.REPO_URLS,
+    output_dir,
+    repo_cache_dir
+)"""
         ],
         container_resources={
             'memory': '8Gi',
@@ -109,38 +108,37 @@ with DAG(
         image=BASE_IMAGE,
         cmds=["python", "-c"],
         arguments=[
-            f"""
-            import os
-            import json
-            from pathlib import Path
-            import flyte_llama.train as train
-            
-            # 设置环境变量
-            os.environ['WANDB_API_KEY'] = '{Variable.get(WANDB_API_KEY)}'
-            os.environ['WANDB_PROJECT'] = 'llama-fine-tuning'
-            os.environ['TRANSFORMERS_CACHE'] = '/tmp'
-            os.environ['PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION'] = 'python'
-            os.environ['TOKENIZERS_PARALLELISM'] = 'true'
-            
-            # 加载配置
-            config = train.TrainerConfig(
-                model_path='codellama/CodeLlama-7b-hf',
-                data_dir='/gcs/dataset',
-                output_dir='/gcs/models',
-                num_epochs=20,
-                batch_size=8,
-                model_max_length=1024,
-                use_4bit=True,
-                use_qlora=True,
-            )
-            
-            # 开始训练
-            train.train(
-                config,
-                pretrained_adapter=None,
-                hf_auth_token='{Variable.get(HF_AUTH_TOKEN)}'
-            )
-            """
+            f"""\
+import os
+import json
+from pathlib import Path
+import flyte_llama.train as train
+
+# 设置环境变量
+os.environ['WANDB_API_KEY'] = '{Variable.get(WANDB_API_KEY)}'
+os.environ['WANDB_PROJECT'] = 'llama-fine-tuning'
+os.environ['TRANSFORMERS_CACHE'] = '/tmp'
+os.environ['PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION'] = 'python'
+os.environ['TOKENIZERS_PARALLELISM'] = 'true'
+
+# 加载配置
+config = train.TrainerConfig(
+    model_path='codellama/CodeLlama-7b-hf',
+    data_dir='{DATASET_PATH}',
+    output_dir='{MODEL_OUTPUT_PATH}',
+    num_epochs=20,
+    batch_size=8,
+    model_max_length=1024,
+    use_4bit=True,
+    use_qlora=True,
+)
+
+# 开始训练
+train.train(
+    config,
+    pretrained_adapter=None,
+    hf_auth_token='{Variable.get(HF_AUTH_TOKEN)}'
+)"""
         ],
         container_resources={
             'memory': '120Gi',
@@ -162,26 +160,25 @@ with DAG(
         image=BASE_IMAGE,
         cmds=["python", "-c"],
         arguments=[
-            f"""
-            from pathlib import Path
-            import flyte_llama.publish as publish
-            import flyte_llama.train as train
-            
-            model_dir = Path('{MODEL_OUTPUT_PATH}')
-            config = train.TrainerConfig(
-                model_path='codellama/CodeLlama-7b-hf',
-                output_dir=model_dir,
-                publish_config=train.PublishConfig(
-                    repo_id='your-hf-repo-id'  # 替换为你的HuggingFace repo ID
-                )
-            )
-            
-            publish.publish_to_hf_hub(
-                model_dir,
-                config,
-                hf_auth_token='{Variable.get(HF_AUTH_TOKEN)}'
-            )
-            """
+            f"""\
+from pathlib import Path
+import flyte_llama.publish as publish
+import flyte_llama.train as train
+
+model_dir = Path('{MODEL_OUTPUT_PATH}')
+config = train.TrainerConfig(
+    model_path='codellama/CodeLlama-7b-hf',
+    output_dir=model_dir,
+    publish_config=train.PublishConfig(
+        repo_id='your-hf-repo-id'  # 替换为你的HuggingFace repo ID
+    )
+)
+
+publish.publish_to_hf_hub(
+    model_dir,
+    config,
+    hf_auth_token='{Variable.get(HF_AUTH_TOKEN)}'
+)"""
         ],
         container_resources={
             'memory': '10Gi',
