@@ -144,7 +144,7 @@ sys.path.append("/opt/airflow/dags")
 from llama_tuning.train import train, TrainerConfig
 from google.cloud import storage
 
-os.environ["WANDB_API_KEY"] = '{Variable.get("WANDB_API_KEY")}'
+os.environ["WANDB_API_KEY"] = '{Variable.get("wandb-api-key")}'
 os.environ["WANDB_PROJECT"] = "unionai-flyte-llama"
 os.environ["WANDB_RUN_ID"] = "{task_id}"
 os.environ["TRANSFORMERS_CACHE"] = "/tmp"
@@ -167,7 +167,7 @@ config.output_dir = "{MODEL_OUTPUT_PATH}/{task_id}"
 model = train(
     config,
     pretrained_adapter={pretrained_adapter},
-    hf_auth_token='{Variable.get("HF_AUTH_TOKEN")}'
+    hf_auth_token='{Variable.get("hf-auth-token")}'
 )
 
 # Upload model to GCS
