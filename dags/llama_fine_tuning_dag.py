@@ -3,7 +3,6 @@
 from datetime import timedelta, datetime
 from pathlib import Path
 from typing import List, Optional, Any
-from textwrap import dedent
 
 from airflow import DAG
 from airflow.models import Variable
@@ -11,8 +10,21 @@ from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperato
 from kubernetes.client import models as k8s
 
 def read_module_code(module_path: str) -> str:
+    """Read module code and remove the if __main__ block."""
     with open(module_path, 'r') as f:
-        return f.read()
+        lines = f.readlines()
+    
+    # Filter out the if __main__ block
+    filtered_lines: List[str] = []
+    in_main_block = False
+    for line in lines:
+        if line.strip().startswith('if __name__ == "__main__"'):
+            in_main_block = True
+            continue
+        if not in_main_block:
+            filtered_lines.append(line)
+    
+    return ''.join(filtered_lines)
 
 # Base configuration
 DEFAULT_REGISTRY = "ghcr.io/unionai-oss"
