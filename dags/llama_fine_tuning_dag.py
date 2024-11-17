@@ -10,8 +10,6 @@ from airflow.models import Variable
 from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
 from kubernetes.client import models as k8s
 
-from llama_tuning.train import TrainerConfig
-
 # Base configuration
 DEFAULT_REGISTRY = "ghcr.io/unionai-oss"
 IMAGE_TAG = "n0d4nltgwbb_iicwbsyfvq.."
@@ -125,7 +123,7 @@ def train_model(
     dag: DAG,
     task_id: str,
     dataset_path: str,
-    config: TrainerConfig,
+    config: dict[str, Any],
     pretrained_adapter: Optional[Path] = None,
 ):
     """Train model task"""
@@ -162,7 +160,7 @@ for blob in bucket.list_blobs(prefix="llama/dataset/"):
     local_file.parent.mkdir(parents=True, exist_ok=True)
     blob.download_to_filename(str(local_file))
 
-config = TrainerConfig(**{config.__dict__})
+config = TrainerConfig(**{config})
 config.data_dir = str(local_dataset_path)
 config.output_dir = "{MODEL_OUTPUT_PATH}/{task_id}"
 
@@ -196,7 +194,7 @@ def publish_model(
     dag: DAG,
     task_id: str,
     model_dir: str,
-    config: TrainerConfig,
+    config: dict,
 ):
     """Publish model task"""
     return KubernetesPodOperator(
@@ -225,7 +223,7 @@ for blob in bucket.list_blobs(prefix="{model_dir}"):
     local_file.parent.mkdir(parents=True, exist_ok=True)
     blob.download_to_filename(str(local_file))
 
-config = TrainerConfig(**{config.__dict__})
+config = TrainerConfig(**{config})
 
 publish_to_hf_hub(
     local_model_dir,
@@ -247,7 +245,7 @@ publish_to_hf_hub(
 
 def batch_size_tuning_workflow(
     dag: DAG,
-    config: TrainerConfig,
+    config: dict[str, Any],
     batch_sizes: List[int],
 ):
     """Batch size tuning workflow"""
@@ -289,17 +287,17 @@ with DAG(
 ) as dag:
     
     # Create base config
-    config = TrainerConfig(
-        model_path='codellama/CodeLlama-7b-hf',
-        data_dir=DATASET_PATH,
-        output_dir=MODEL_OUTPUT_PATH,
-        num_epochs=20,
-        batch_size=8,
-        model_max_length=1024,
-        use_4bit=True,
-        use_qlora=True,
-        report_to="wandb",
-    )
+    config = {
+        'model_path': 'codellama/CodeLlama-7b-hf',
+        'data_dir': DATASET_PATH,
+        'output_dir': MODEL_OUTPUT_PATH,
+        'num_epochs': 20,
+        'batch_size': 8,
+        'model_max_length': 1024,
+        'use_4bit': True,
+        'use_qlora': True,
+        'report_to': "wandb",
+    }
 
     # Define batch sizes to try
     batch_sizes = [4, 8, 16]
