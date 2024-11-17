@@ -73,6 +73,9 @@ try:
 except Exception as e:
     print(f"Error listing objects: {{e}}")
 
+blob = bucket.blob('test.txt')
+blob.upload_from_string('Hello, World!')
+print("Successfully wrote test file")
 
 from pathlib import Path
 from typing import List, Optional
@@ -109,7 +112,7 @@ print("Dataset path: {DATASET_PATH}")"""
         ),
         is_delete_operator_pod=True,
         get_logs=True,
-        service_account_name="default",
+        service_account_name="88945870421-compute@developer.gserviceaccount.com",
     )
 
 def train_model(
