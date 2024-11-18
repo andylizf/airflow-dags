@@ -2,7 +2,7 @@
 
 from datetime import timedelta, datetime
 from pathlib import Path
-from typing import List, Optional, Any
+from typing import List, Optional, Any, Dict
 
 from airflow import DAG
 from airflow.models import Variable
@@ -201,19 +201,30 @@ for file_path in Path(config.output_dir).rglob("*"):
         container_resources=k8s.V1ResourceRequirements(
             requests={
                 'cpu': '4',
-                'memory': '64Gi',
-                'ephemeral-storage': '50Gi',
-                'nvidia.com/gpu': '4'
+                'memory': '16Gi',
+                'ephemeral-storage': '20Gi',
+                'nvidia.com/gpu': '1'
             },
             limits={
-                'cpu': '16',
-                'memory': '64Gi',
-                'ephemeral-storage': '50Gi',
-                'nvidia.com/gpu': '4'
+                'cpu': '6',
+                'memory': '24Gi',
+                'ephemeral-storage': '20Gi',
+                'nvidia.com/gpu': '1'
             }
         ),
         is_delete_operator_pod=True,
         get_logs=True,
+        node_selector={
+            'cloud.google.com/gke-nodepool': 'gpu-pool'
+        },
+        tolerations=[
+            k8s.V1Toleration(
+                key='nvidia.com/gpu',
+                operator='Exists',
+                effect='NoSchedule'
+            )
+        ],
+        startup_timeout_seconds=300,
     )
     return _add_gcp_volume_config(operator)
 
