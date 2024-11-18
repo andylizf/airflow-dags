@@ -2,29 +2,53 @@
 
 from datetime import timedelta, datetime
 from pathlib import Path
-from typing import List, Optional, Any, Dict
+from typing import List, Optional, Any
 
 from airflow import DAG
 from airflow.models import Variable
 from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
 from kubernetes.client import models as k8s
 
-def read_module_code(module_path: str) -> str:
-    """Read module code and remove the if __main__ block."""
-    with open(module_path, 'r') as f:
+# Base paths
+DAGS_DIR = Path(__file__).parent
+LLAMA_TUNING_DIR = DAGS_DIR / 'llama_tuning'
+
+def read_module_code(module_path: Path) -> str:
+    """Read module code and handle imports."""
+    with open(module_path) as f:
         lines = f.readlines()
     
-    # Filter out the if __main__ block
+    # Filter out the if __main__ block and collect imports
     filtered_lines: List[str] = []
+    imports: List[str] = []
     in_main_block = False
+    
     for line in lines:
+        if line.strip().startswith('from llama_tuning.'):
+            # Convert internal imports to direct imports
+            module_name = line.split('from llama_tuning.')[1].split(' import ')[0]
+            imports.append(module_name)
+            continue
         if line.strip().startswith('if __name__ == "__main__"'):
             in_main_block = True
             continue
         if not in_main_block:
             filtered_lines.append(line)
     
-    return ''.join(filtered_lines)
+    # Read and inject imported modules
+    imported_code: list[str] = []
+    for module_name in imports:
+        module_path = LLAMA_TUNING_DIR / f'{module_name}.py'
+        with open(module_path) as f:
+            module_code = f.read()
+            # Remove any llama_tuning imports from imported modules
+            module_code = '\n'.join(
+                line for line in module_code.split('\n')
+                if not line.strip().startswith('from llama_tuning.')
+            )
+            imported_code.append(f"\n# Imported from {module_name}.py\n{module_code}")
+    
+    return ''.join(imported_code + filtered_lines)
 
 # Base configuration
 DEFAULT_REGISTRY = "ghcr.io/unionai-oss"
@@ -36,36 +60,37 @@ GCS_BUCKET = "airflow-llama-tuning-skypilot-375902"
 DATASET_PATH = f"gs://{GCS_BUCKET}/llama/dataset"
 MODEL_OUTPUT_PATH = f"gs://{GCS_BUCKET}/llama/models"
 
-DATASET_CODE = read_module_code('/opt/airflow/dags/repo/dags/llama_tuning/dataset.py')
-TRAIN_CODE = read_module_code('/opt/airflow/dags/repo/dags/llama_tuning/train.py')
-PUBLISH_CODE = read_module_code('/opt/airflow/dags/repo/dags/llama_tuning/publish.py')
+# Load module code
+TRAIN_CODE = read_module_code(LLAMA_TUNING_DIR / 'train.py')
+DATASET_CODE = read_module_code(LLAMA_TUNING_DIR / 'dataset.py')
+PUBLISH_CODE = read_module_code(LLAMA_TUNING_DIR / 'publish.py')
 
-def _add_gcp_volume_config(pod_operator: KubernetesPodOperator) -> KubernetesPodOperator:
-    """添加 GCP 密钥相关配置"""
-    pod_operator.env_vars = {
+# GCP Volume Configuration
+GCP_VOLUME_CONFIG = {
+    "env_vars": {
         "GOOGLE_APPLICATION_CREDENTIALS": "/var/secrets/google/key.json"
-    }
-    pod_operator.volumes = [
+    },
+    "volumes": [
         k8s.V1Volume(
             name="gcp-key",
             secret=k8s.V1SecretVolumeSource(
                 secret_name="gcp-key"
             )
         )
-    ]
-    pod_operator.volume_mounts = [
+    ],
+    "volume_mounts": [
         k8s.V1VolumeMount(
             name="gcp-key",
             mount_path="/var/secrets/google",
             read_only=True
         )
     ]
-    return pod_operator
+}
 
 def create_dataset(dag: DAG, task_id: str, additional_urls: Optional[List[str]] = None,
                    force_create: bool = False) -> KubernetesPodOperator:
     """Create dataset task"""
-    operator = KubernetesPodOperator(
+    return KubernetesPodOperator(
         task_id=task_id,
         dag=dag,
         name=task_id,
@@ -136,8 +161,8 @@ print("Dataset path: {DATASET_PATH}")"""
         ),
         is_delete_operator_pod=True,
         get_logs=True,
+        **GCP_VOLUME_CONFIG
     )
-    return _add_gcp_volume_config(operator)
 
 def train_model(
     dag: DAG,
@@ -147,7 +172,7 @@ def train_model(
     pretrained_adapter: Optional[Path] = None,
 ) -> KubernetesPodOperator:
     """Train model task"""
-    operator = KubernetesPodOperator(
+    return KubernetesPodOperator(
         task_id=task_id,
         dag=dag,
         name=task_id,
@@ -225,8 +250,8 @@ for file_path in Path(config.output_dir).rglob("*"):
             )
         ],
         startup_timeout_seconds=300,
+        **GCP_VOLUME_CONFIG
     )
-    return _add_gcp_volume_config(operator)
 
 def publish_model(
     dag: DAG,
@@ -235,7 +260,7 @@ def publish_model(
     config: dict[str, Any],
 ) -> KubernetesPodOperator:
     """Publish model task"""
-    operator = KubernetesPodOperator(
+    return KubernetesPodOperator(
         task_id=task_id,
         dag=dag,
         name=task_id,
@@ -284,8 +309,8 @@ publish_to_hf_hub(
         ),
         is_delete_operator_pod=True,
         get_logs=True,
+        **GCP_VOLUME_CONFIG
     )
-    return _add_gcp_volume_config(operator)
 
 def batch_size_tuning_workflow(
     dag: DAG,
