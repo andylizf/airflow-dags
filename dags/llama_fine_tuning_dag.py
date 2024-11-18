@@ -62,7 +62,8 @@ def _add_gcp_volume_config(pod_operator: KubernetesPodOperator) -> KubernetesPod
     ]
     return pod_operator
 
-def create_dataset(dag: DAG, task_id: str, additional_urls: Optional[List[str]] = None) -> KubernetesPodOperator:
+def create_dataset(dag: DAG, task_id: str, additional_urls: Optional[List[str]] = None,
+                   force_create: bool = False) -> KubernetesPodOperator:
     """Create dataset task"""
     operator = KubernetesPodOperator(
         task_id=task_id,
@@ -73,6 +74,8 @@ def create_dataset(dag: DAG, task_id: str, additional_urls: Optional[List[str]] 
         cmds=["python", "-c"],
         arguments=[
             f"""\
+import hashlib
+import json
 from pathlib import Path
 from typing import List, Optional
 from google.cloud import storage
@@ -80,22 +83,42 @@ from google.cloud import storage
 # Inject dataset module code
 {DATASET_CODE}
 
+# Calculate config hash
 urls = REPO_URLS + {additional_urls or []}
-working_dir = Path('/tmp/working_dir')
-temp_output_dir = working_dir / "dataset"
-repo_cache_dir = working_dir / "repo_cache"
+config_hash = hashlib.sha256(
+    json.dumps({{"urls": sorted(urls)}}, sort_keys=True).encode()
+).hexdigest()[:8]
 
-# Create dataset locally first
-create_dataset(urls, temp_output_dir, repo_cache_dir)
-
-# Upload to GCS
+# Check if dataset with same hash exists
 client = storage.Client()
 bucket = client.bucket("{GCS_BUCKET}")
-for file_path in temp_output_dir.rglob("*"):
-    if file_path.is_file():
-        blob_path = f"llama/dataset/{{file_path.relative_to(temp_output_dir)}}"
-        blob = bucket.blob(blob_path)
-        blob.upload_from_filename(str(file_path))
+hash_blob = bucket.blob("llama/dataset/.hash")
+dataset_exists = False
+
+if hash_blob.exists():
+    existing_hash = hash_blob.download_as_text().strip()
+    dataset_exists = existing_hash == config_hash
+
+if dataset_exists and not {force_create}:
+    print(f"Dataset with hash {{config_hash}} already exists, skipping creation...")
+else:
+    print(f"Creating new dataset with hash {{config_hash}}...")
+    working_dir = Path('/tmp/working_dir')
+    temp_output_dir = working_dir / "dataset"
+    repo_cache_dir = working_dir / "repo_cache"
+
+    # Create dataset locally first
+    create_dataset(urls, temp_output_dir, repo_cache_dir)
+
+    # Upload to GCS
+    for file_path in temp_output_dir.rglob("*"):
+        if file_path.is_file():
+            blob_path = f"llama/dataset/{{file_path.relative_to(temp_output_dir)}}"
+            blob = bucket.blob(blob_path)
+            blob.upload_from_filename(str(file_path))
+    
+    # Save hash
+    hash_blob.upload_from_string(config_hash)
 
 print("Dataset path: {DATASET_PATH}")"""
         ],
