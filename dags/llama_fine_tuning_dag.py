@@ -130,6 +130,11 @@ print("Dataset path: {DATASET_PATH}")"""
                 'memory': '8Gi',
                 'cpu': '2',
                 'ephemeral-storage': '8Gi'
+            },
+            limits={
+                'memory': '8Gi',
+                'cpu': '2',
+                'ephemeral-storage': '8Gi'
             }
         ),
         is_delete_operator_pod=True,
@@ -202,6 +207,12 @@ for file_path in Path(config.output_dir).rglob("*"):
                 'cpu': '44',
                 'nvidia.com/gpu': '8',
                 'ephemeral-storage': '100Gi'
+            },
+            limits={
+                'memory': '120Gi',
+                'cpu': '44',
+                'nvidia.com/gpu': '8',
+                'ephemeral-storage': '100Gi'
             }
         ),
         is_delete_operator_pod=True,
@@ -253,6 +264,11 @@ publish_to_hf_hub(
         ],
         container_resources=k8s.V1ResourceRequirements(
             requests={
+                'memory': '10Gi',
+                'cpu': '1',
+                'ephemeral-storage': '64Gi'
+            },
+            limits={
                 'memory': '10Gi',
                 'cpu': '1',
                 'ephemeral-storage': '64Gi'
