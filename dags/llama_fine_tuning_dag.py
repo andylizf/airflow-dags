@@ -73,32 +73,6 @@ def create_dataset(dag: DAG, task_id: str, additional_urls: Optional[List[str]] 
         cmds=["python", "-c"],
         arguments=[
             f"""\
-import google.auth
-import google.cloud.storage
-from google.cloud.storage.bucket import Bucket
-
-# 打印认证信息
-credentials, project = google.auth.default()
-print(f"Using credentials: {{credentials.service_account_email}}")
-print(f"Project: {{project}}")
-
-# 尝试列出 bucket
-storage_client = google.cloud.storage.Client()
-bucket = storage_client.bucket('{GCS_BUCKET}')
-print(f"Bucket: {{bucket.name}}")
-print(f"Bucket project: {{bucket.project_number}}")
-
-# 尝试列出对象
-try:
-    blobs = list(bucket.list_blobs())
-    print(f"Objects in bucket: {{len(blobs)}}")
-except Exception as e:
-    print(f"Error listing objects: {{e}}")
-
-blob = bucket.blob('test.txt')
-blob.upload_from_string('Hello, World!')
-print("Successfully wrote test file")
-
 from pathlib import Path
 from typing import List, Optional
 from google.cloud import storage
