@@ -200,16 +200,16 @@ for file_path in Path(config.output_dir).rglob("*"):
         ],
         container_resources=k8s.V1ResourceRequirements(
             requests={
-                'memory': '120Gi',
-                'cpu': '44',
-                'nvidia.com/gpu': '8',
-                'ephemeral-storage': '100Gi'
+                'cpu': '4',
+                'memory': '64Gi',
+                'ephemeral-storage': '50Gi',
+                'nvidia.com/gpu': '4'
             },
             limits={
-                'memory': '120Gi',
-                'cpu': '44',
-                'nvidia.com/gpu': '8',
-                'ephemeral-storage': '100Gi'
+                'cpu': '16',
+                'memory': '64Gi',
+                'ephemeral-storage': '50Gi',
+                'nvidia.com/gpu': '4'
             }
         ),
         is_delete_operator_pod=True,
