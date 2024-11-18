@@ -40,9 +40,31 @@ DATASET_CODE = read_module_code('/opt/airflow/dags/repo/dags/llama_tuning/datase
 TRAIN_CODE = read_module_code('/opt/airflow/dags/repo/dags/llama_tuning/train.py')
 PUBLISH_CODE = read_module_code('/opt/airflow/dags/repo/dags/llama_tuning/publish.py')
 
+def _add_gcp_volume_config(pod_operator: KubernetesPodOperator) -> KubernetesPodOperator:
+    """添加 GCP 密钥相关配置"""
+    pod_operator.env_vars = {
+        "GOOGLE_APPLICATION_CREDENTIALS": "/var/secrets/google/key.json"
+    }
+    pod_operator.volumes = [
+        k8s.V1Volume(
+            name="gcp-key",
+            secret=k8s.V1SecretVolumeSource(
+                secret_name="gcp-key"
+            )
+        )
+    ]
+    pod_operator.volume_mounts = [
+        k8s.V1VolumeMount(
+            name="gcp-key",
+            mount_path="/var/secrets/google",
+            read_only=True
+        )
+    ]
+    return pod_operator
+
 def create_dataset(dag: DAG, task_id: str, additional_urls: Optional[List[str]] = None) -> KubernetesPodOperator:
     """Create dataset task"""
-    return KubernetesPodOperator(
+    operator = KubernetesPodOperator(
         task_id=task_id,
         dag=dag,
         name=task_id,
@@ -112,29 +134,8 @@ print("Dataset path: {DATASET_PATH}")"""
         ),
         is_delete_operator_pod=True,
         get_logs=True,
-        env_vars=[
-            k8s.V1EnvVar(
-                name="GOOGLE_APPLICATION_CREDENTIALS",
-                value="/var/secrets/google/key.json"
-            )
-        ],
-        volumes=[
-            k8s.V1Volume(
-                name="gcp-key",
-                secret=k8s.V1SecretVolumeSource(
-                    secret_name="gcp-key"
-                )
-            )
-        ],
-        volume_mounts=[
-            k8s.V1VolumeMount(
-                name="gcp-key",
-                mount_path="/var/secrets/google",
-                read_only=True
-            )
-        ],
-        service_account_name="default",
     )
+    return _add_gcp_volume_config(operator)
 
 def train_model(
     dag: DAG,
@@ -142,9 +143,9 @@ def train_model(
     dataset_path: str,
     config: dict[str, Any],
     pretrained_adapter: Optional[Path] = None,
-):
+) -> KubernetesPodOperator:
     """Train model task"""
-    return KubernetesPodOperator(
+    operator = KubernetesPodOperator(
         task_id=task_id,
         dag=dag,
         name=task_id,
@@ -199,22 +200,23 @@ for file_path in Path(config.output_dir).rglob("*"):
             requests={
                 'memory': '120Gi',
                 'cpu': '44',
-                'gpu': '8',
+                'nvidia.com/gpu': '8',
                 'ephemeral-storage': '100Gi'
             }
         ),
         is_delete_operator_pod=True,
         get_logs=True,
     )
+    return _add_gcp_volume_config(operator)
 
 def publish_model(
     dag: DAG,
     task_id: str,
     model_dir: str,
-    config: dict,
-):
+    config: dict[str, Any],
+) -> KubernetesPodOperator:
     """Publish model task"""
-    return KubernetesPodOperator(
+    operator = KubernetesPodOperator(
         task_id=task_id,
         dag=dag,
         name=task_id,
@@ -259,6 +261,7 @@ publish_to_hf_hub(
         is_delete_operator_pod=True,
         get_logs=True,
     )
+    return _add_gcp_volume_config(operator)
 
 def batch_size_tuning_workflow(
     dag: DAG,
