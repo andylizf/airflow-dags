@@ -377,12 +377,12 @@ filtered_items, classification_results = filter_issues_with_llm(
 
 # Save classification results
 with (filtered_dir / "classification_results.json").open("w") as f:
-    json.dump({
+    json.dump({{
         "total_items": len(issues) + len(discussions),
         "filtered_items": len(filtered_items),
         "results": classification_results,
         "timestamp": str(datetime.now().isoformat())
-    }, f, indent=2)
+    }}, f, indent=2)
 
 # Save filtered issues
 saved_files = []
@@ -398,17 +398,17 @@ for item in filtered_items:
 
 # Save manifest
 with (filtered_dir / "manifest.json").open("w") as f:
-    json.dump({
+    json.dump({{
         "total_issues": len(issues),
         "filtered_items": len(filtered_items),
         "files": [f.name for f in saved_files],
         "timestamp": str(datetime.now().isoformat()),
         "model_path": "{model_path}",
-        "classification_summary": {
+        "classification_summary": {{
             "accepted": len(filtered_items),
             "rejected": len(issues) - len(filtered_items)
-        }
-    }, f, indent=2)
+        }}
+    }}, f, indent=2)
 
 # Upload results to GCS
 for file_path in filtered_dir.rglob("*"):
