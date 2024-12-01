@@ -369,7 +369,7 @@ for disc_file in discussions_dir.glob("*.json"):
         discussions.append(json.load(f))
 
 # Filter issues using LLM
-{FILTER_CODE}
+{FETCHER_CODE}
 
 filtered_items, classification_results = filter_issues_with_llm(
     issues,
