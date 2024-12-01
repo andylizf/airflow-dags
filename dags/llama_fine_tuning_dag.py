@@ -513,6 +513,7 @@ serving_config = ServingConfig(
     model_path="{base_model_path}",
     adapter_path=str(adapter_local_path),
     model_max_length=8192,
+    max_new_tokens=2048,
     device_map="auto",
     hf_token='{Variable.get("hf-auth-token")}',
 )
@@ -642,7 +643,6 @@ Keep each section brief and focused. Prioritize practical implementation details
             pad_token_id=pipe.tokenizer.eos_token_id,
             temperature=0.3,
             do_sample=True,
-            max_new_tokens=2048,
             repetition_penalty=1.3,
             no_repeat_ngram_size=5,
             top_p=0.85,
