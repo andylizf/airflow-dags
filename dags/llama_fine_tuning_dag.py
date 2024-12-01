@@ -65,6 +65,9 @@ TRAIN_CODE = read_module_code(LLAMA_TUNING_DIR / 'train.py')
 DATASET_CODE = read_module_code(LLAMA_TUNING_DIR / 'dataset.py')
 PUBLISH_CODE = read_module_code(LLAMA_TUNING_DIR / 'publish.py')
 
+INFERENCE_CODE = read_module_code(LLAMA_TUNING_DIR / 'inference.py')
+FETCHER_CODE = read_module_code(LLAMA_TUNING_DIR / 'fetcher.py')
+
 # GCP Volume Configuration
 GCP_VOLUME_CONFIG = {
     "env_vars": {
@@ -366,7 +369,7 @@ for disc_file in discussions_dir.glob("*.json"):
         discussions.append(json.load(f))
 
 # Filter issues using LLM
-from llama_tuning.fetcher import filter_issues_with_llm
+{FILTER_CODE}
 
 filtered_items, classification_results = filter_issues_with_llm(
     issues,
@@ -494,7 +497,7 @@ for blob in bucket.list_blobs(prefix="{adapter_path}"):
     blob.download_to_filename(str(local_file))
 
 # Configure model
-from llama_tuning.inference import ServingConfig, load_pipeline
+{INFERENCE_CODE}
 
 serving_config = ServingConfig(
     model_path="{base_model_path}",
@@ -653,7 +656,7 @@ from google.cloud import storage
 from datetime import datetime
 
 # Import fetcher module
-from llama_tuning.fetcher import fetch_github_issues, fetch_github_discussions, save_to_dataset
+{FETCHER_CODE}
 
 # Set up local directory
 local_output_dir = Path("/tmp/{output_dir}")
