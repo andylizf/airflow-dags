@@ -423,14 +423,14 @@ for file_path in filtered_dir.rglob("*"):
         ],
         container_resources=k8s.V1ResourceRequirements(
             requests={
-                'memory': '30Gi',
-                'cpu': '8',
-                'ephemeral-storage': '16Gi'
+                'memory': '16Gi',
+                'cpu': '4',
+                'ephemeral-storage': '8Gi'
             },
             limits={
-                'memory': '30Gi',
-                'cpu': '8',
-                'ephemeral-storage': '16Gi'
+                'memory': '16Gi',
+                'cpu': '4',
+                'ephemeral-storage': '8Gi'
             }
         ),
         is_delete_operator_pod=True,
