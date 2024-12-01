@@ -686,7 +686,7 @@ for file_path in local_output_dir.rglob("*"):
 # Create metadata file
 metadata = {{
     "timestamp": datetime.now().isoformat(),
-    "repository": f"{{owner}}/{{repo}}",
+    "repository": f"{owner}/{repo}",
     "issues_count": len(issues),
     "discussions_count": len(discussions),
     "files": [str(f.relative_to(local_output_dir)) for f in local_output_dir.rglob("*") if f.is_file()]
