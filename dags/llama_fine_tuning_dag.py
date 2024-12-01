@@ -435,6 +435,16 @@ for file_path in filtered_dir.rglob("*"):
         ),
         is_delete_operator_pod=True,
         get_logs=True,
+        node_selector={
+            'cloud.google.com/gke-nodepool': 'gpu-pool'
+        },
+        tolerations=[
+            k8s.V1Toleration(
+                key='nvidia.com/gpu',
+                operator='Exists',
+                effect='NoSchedule'
+            )
+        ],
         **GCP_VOLUME_CONFIG
     )
 
@@ -524,15 +534,86 @@ for issue in issues:
     try:
         prompt = f'''[INST] You are an expert programmer analyzing a feature request for the SkyPilot framework. Break down this feature request into a clear implementation plan.
 
+Here's an example analysis of a fake feature request:
+----------------
 Feature Request:
+Title: Add timeout parameter for spot job recovery
+Description: When using spot instances, if the instance is preempted, SkyPilot will try to recover indefinitely. We should add a timeout parameter to limit the recovery time.
+
+Analysis:
+1. Current Behavior:
+- Spot recovery loop runs without timeout control:
+```python
+# spot.py
+def recover_spot_job(task: Task):
+    while True:  # Infinite loop without timeout
+        try:
+            return _attempt_spot_recovery(task)
+        except Exception as e:
+            logger.error(f'Recovery failed: {{{{e}}}}')
+            time.sleep(RETRY_INTERVAL)
+```
+- Task class has no timeout configuration:
+```python
+class Task:
+    def __init__(self, spot_policy: Optional[str] = None):
+        self.spot_policy = spot_policy  # No timeout parameter
+```
+- Users can only interrupt recovery manually by killing the process
+
+2. Proposed Solution:
+- Add spot_recovery_timeout parameter to job submission
+- Implement timeout logic in spot recovery loop
+- Provide clear error message when timeout is reached
+
+3. Implementation Plan:
+- Modify spot.py to add timeout parameter and logic
+- Update task.py to include timeout configuration
+- Add timeout handling in recovery loop
+
+4. Code Implementation:
+- Add timeout parameter to Task class:
+```python
+class Task:
+    def __init__(self, spot_recovery_timeout: Optional[int] = None):
+        self.spot_recovery_timeout = spot_recovery_timeout
+```
+
+- Implement timeout logic in spot recovery:
+```python
+def recover_spot_job(task: Task):
+    start_time = time.time()
+    while True:
+        if (task.spot_recovery_timeout and 
+            time.time() - start_time > task.spot_recovery_timeout):
+            raise SpotTimeoutError(
+                f'Spot recovery timeout after {{{{task.spot_recovery_timeout}}}}s')
+        try:
+            return _attempt_spot_recovery(task)
+        except Exception as e:
+            logger.error(f'Recovery failed: {{{{e}}}}')
+```
+
+- Add unit tests:
+```python
+def test_spot_recovery_timeout():
+    task = Task(spot_recovery_timeout=60)
+    with pytest.raises(SpotTimeoutError):
+        recover_spot_job(task)
+```
+
+----------------
+
+Now analyze this feature request:
 Title: {{issue['title']}}
 Description: {{issue['body']}}
 
-Provide a concise analysis in this structure:
+Provide a similar detailed analysis with concrete code examples.
 
 1. Current Behavior:
-- What exists now
-- Current limitations
+- Describe current implementation with relevant code snippets in SkyPilot repository
+- Identify limitations in existing code
+- Show where changes will be needed
 
 2. Proposed Solution:
 - Core functionality needed
@@ -545,9 +626,9 @@ Provide a concise analysis in this structure:
 - Integration points
 
 4. Code Implementation:
-- Key function/class changes
-- Essential code examples
-- Testing approach
+- Key function/class changes with code examples
+- Integration code
+- Testing approach with example test cases
 
 Keep each section brief and focused. Prioritize practical implementation details.
 [/INST]'''
@@ -561,6 +642,7 @@ Keep each section brief and focused. Prioritize practical implementation details
             pad_token_id=pipe.tokenizer.eos_token_id,
             temperature=0.3,
             do_sample=True,
+            max_new_tokens=2048,
             repetition_penalty=1.3,
             no_repeat_ngram_size=5,
             top_p=0.85,
