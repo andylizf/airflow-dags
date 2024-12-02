@@ -86,6 +86,7 @@ def train(
         config.model_path,
         model_max_length=config.model_max_length,
         padding_side=config.padding,
+        token=hf_auth_token,
     )
     tokenizer.pad_token = tokenizer.eos_token
 
