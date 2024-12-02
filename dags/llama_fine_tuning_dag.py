@@ -433,7 +433,7 @@ for file_path in filtered_dir.rglob("*"):
                 'ephemeral-storage': '8Gi'
             }
         ),
-        is_delete_operator_pod=True,
+        # is_delete_operator_pod=True,
         get_logs=True,
         node_selector={
             'cloud.google.com/gke-nodepool': 'gpu-pool'
