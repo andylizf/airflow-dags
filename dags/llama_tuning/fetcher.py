@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import List, Dict, Any, Optional, Tuple, Union
 from dataclasses import dataclass
 from transformers import AutoModelForCausalLM, AutoTokenizer, pipeline
+import transformers
 
 print("transformers.__version__", transformers.__version__)
 
