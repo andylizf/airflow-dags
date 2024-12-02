@@ -542,7 +542,7 @@ for issue in issues:
         full_prompt = system_prompt + "\\n\\n" + issue_prompt
         
         print(f"Generating implementation plan for feature #{{issue['number']}}")
-        print(f"Input prompt: {issue_prompt}")
+        print(f"Input prompt: {{issue_prompt}}")
         print(f"Input prompt length: {{len(full_prompt)}}")
         
         inputs = tokenizer(full_prompt, return_tensors="pt").to("cuda")
