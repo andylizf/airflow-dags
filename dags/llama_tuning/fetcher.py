@@ -7,6 +7,8 @@ from typing import List, Dict, Any, Optional, Tuple, Union
 from dataclasses import dataclass
 from transformers import AutoModelForCausalLM, AutoTokenizer, pipeline
 
+print("transformers.__version__", transformers.__version__)
+
 @dataclass
 class Issue:
     title: str

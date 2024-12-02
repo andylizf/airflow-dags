@@ -456,6 +456,11 @@ def generate_answers(
     adapter_path: str,
 ) -> KubernetesPodOperator:
     """Generate answers task"""
+
+    system_prompt = """
+
+    """
+
     return KubernetesPodOperator(
         task_id=task_id,
         dag=dag,
@@ -488,7 +493,7 @@ for blob in bucket.list_blobs(prefix="{filtered_issues_path}"):
 
 # Load issues
 issues = []
-for issue_file in issues_path.glob("filtered_*.json"):
+for issue_file in issues_path.glob("filtered_issue_*.json"):
     with issue_file.open() as f:
         try:
             issue_data = json.load(f)
@@ -512,158 +517,77 @@ for blob in bucket.list_blobs(prefix="{adapter_path}"):
 serving_config = ServingConfig(
     model_path="{base_model_path}",
     adapter_path=str(adapter_local_path),
-    model_max_length=8192,
-    max_new_tokens=2048,
     device_map="auto",
     hf_token='{Variable.get("hf-auth-token")}',
 )
 
-# Load model and generate answers
-pipe = load_pipeline(serving_config)
+# Load model and tokenizer
+model, tokenizer = load_pipeline(serving_config)
+
+# # Add test question
+# test_issue = {{
+#     "number": 0,
+#     "url": "https://github.com/skypilot-org/skypilot/issues/test",
+#     "title": "How to launch a cluster in SkyPilot",
+#     "body": "I want to know how to launch a cluster using SkyPilot. Please provide detailed steps and code examples."
+# }}
+# issues.insert(0, test_issue)
+
+system_prompt = '''{system_prompt}'''
+
 answers = []
-
-# Add test question
-test_issue = {{
-    "number": 0,
-    "url": "https://github.com/skypilot-org/skypilot/issues/test",
-    "title": "How to launch a cluster in SkyPilot",
-    "body": "I want to know how to launch a cluster using SkyPilot. Please provide detailed steps and code examples."
-}}
-issues.insert(0, test_issue)
-
 for issue in issues:
     try:
-        prompt = f'''[INST] You are an expert programmer analyzing a feature request for the SkyPilot framework. Break down this feature request into a clear implementation plan.
-
-Here's an example analysis of a fake feature request:
-----------------
-Feature Request:
-Title: Add timeout parameter for spot job recovery
-Description: When using spot instances, if the instance is preempted, SkyPilot will try to recover indefinitely. We should add a timeout parameter to limit the recovery time.
-
-Analysis:
-1. Current Behavior:
-- Spot recovery loop runs without timeout control:
-```python
-# spot.py
-def recover_spot_job(task: Task):
-    while True:  # Infinite loop without timeout
-        try:
-            return _attempt_spot_recovery(task)
-        except Exception as e:
-            logger.error(f'Recovery failed: {{{{e}}}}')
-            time.sleep(RETRY_INTERVAL)
-```
-- Task class has no timeout configuration:
-```python
-class Task:
-    def __init__(self, spot_policy: Optional[str] = None):
-        self.spot_policy = spot_policy  # No timeout parameter
-```
-- Users can only interrupt recovery manually by killing the process
-
-2. Proposed Solution:
-- Add spot_recovery_timeout parameter to job submission
-- Implement timeout logic in spot recovery loop
-- Provide clear error message when timeout is reached
-
-3. Implementation Plan:
-- Modify spot.py to add timeout parameter and logic
-- Update task.py to include timeout configuration
-- Add timeout handling in recovery loop
-
-4. Code Implementation:
-- Add timeout parameter to Task class:
-```python
-class Task:
-    def __init__(self, spot_recovery_timeout: Optional[int] = None):
-        self.spot_recovery_timeout = spot_recovery_timeout
-```
-
-- Implement timeout logic in spot recovery:
-```python
-def recover_spot_job(task: Task):
-    start_time = time.time()
-    while True:
-        if (task.spot_recovery_timeout and 
-            time.time() - start_time > task.spot_recovery_timeout):
-            raise SpotTimeoutError(
-                f'Spot recovery timeout after {{{{task.spot_recovery_timeout}}}}s')
-        try:
-            return _attempt_spot_recovery(task)
-        except Exception as e:
-            logger.error(f'Recovery failed: {{{{e}}}}')
-```
-
-- Add unit tests:
-```python
-def test_spot_recovery_timeout():
-    task = Task(spot_recovery_timeout=60)
-    with pytest.raises(SpotTimeoutError):
-        recover_spot_job(task)
-```
-
-----------------
-
-Now analyze this feature request:
-Title: {{issue['title']}}
-Description: {{issue['body']}}
-
-Provide a similar detailed analysis with concrete code examples.
-
-1. Current Behavior:
-- Describe current implementation with relevant code snippets in SkyPilot repository
-- Identify limitations in existing code
-- Show where changes will be needed
-
-2. Proposed Solution:
-- Core functionality needed
-- Key benefits
-- Technical requirements
-
-3. Implementation Plan:
-- Components to modify
-- Key steps (max 3)
-- Integration points
-
-4. Code Implementation:
-- Key function/class changes with code examples
-- Integration code
-- Testing approach with example test cases
-
-Keep each section brief and focused. Prioritize practical implementation details.
-[/INST]'''
-
-        print(f"Generating implementation plan for feature #{{issue['number']}}")
+        issue_prompt = f"Title: {{issue['title']}}\\nDescription: {{issue['body']}}\\n"
+        full_prompt = system_prompt + "\\n\\n" + issue_prompt
         
-        result = pipe(
-            [prompt],
-            max_new_tokens=serving_config.max_new_tokens,
-            num_return_sequences=1,
-            pad_token_id=pipe.tokenizer.eos_token_id,
-            temperature=0.3,
+        print(f"Generating implementation plan for feature #{{issue['number']}}")
+        print(f"Input prompt: {issue_prompt}")
+        print(f"Input prompt length: {{len(full_prompt)}}")
+        
+        inputs = tokenizer(full_prompt, return_tensors="pt").to("cuda")
+        outputs = model.generate(
+            **inputs,
+            temperature=0.2,
+            top_p=0.75,
+            top_k=40,
+            num_beams=1,
+            no_repeat_ngram_size=3,
+            repetition_penalty=1.2,
+            encoder_repetition_penalty=1.0, 
+            typical_p=1.0,
+            length_penalty=1.2,
             do_sample=True,
-            repetition_penalty=1.3,
-            no_repeat_ngram_size=5,
-            top_p=0.85,
+            max_new_tokens=1024,
+            pad_token_id=tokenizer.eos_token_id,
+            eos_token_id=tokenizer.eos_token_id
         )
         
-        answer = result[0][0]["generated_text"].split("[/INST]")[-1].strip()
+        response = tokenizer.decode(outputs[0][inputs['input_ids'].shape[1]:], skip_special_tokens=True)
+        response = response.strip()
+        print("Final answer:", response)
         
         answers.append({{
             "issue_number": issue["number"],
             "issue_url": issue["url"],
-            "answer": answer,
+            "answer": response,
             "generation_params": {{
-                "temperature": 0.3,
-                "max_new_tokens": serving_config.max_new_tokens,
-                "repetition_penalty": 1.3,
-                "top_p": 0.85
+                "temperature": 0.2,
+                "max_new_tokens": 1024,
+                "repetition_penalty": 1.2,
+                "top_p": 0.75,
+                "top_k": 40,
+                "num_beams": 1,
+                "no_repeat_ngram_size": 3,
+                "encoder_repetition_penalty": 1.0,
+                "typical_p": 1.0,
+                "length_penalty": 1.2
             }}
         }})
         
     except Exception as e:
         print(f"Error generating answer for issue #{{issue.get('number', 'unknown')}}: {{e}}")
+        continue
 
 # Save answers
 output_path = Path("/tmp/issue_answers")
@@ -823,17 +747,30 @@ with DAG(
     
     # Create base config
     config = {
-        'model_path': 'codellama/CodeLlama-7b-hf',
-        'data_dir': DATASET_PATH,
+        "model_path": "meta-llama/Llama-3.1-8B-Instruct",
         'output_dir': MODEL_OUTPUT_PATH,
-        'num_epochs': 3,
-        'batch_size': 4,
-        'model_max_length': 1024,
-        'use_4bit': True,
-        'use_qlora': True,
-        'report_to': "wandb",
+        "data_dir": DATASET_PATH,
+        "checkpoint_dir": None,
+        "num_epochs": 5,
+        "batch_size": 4,
+        "test_size": 0.001,
+        "model_max_length": 1024,
+        "seed": 41,
+        "report_to": "wandb",
+        "device_map": "auto",
+        "gradient_accumulation_steps": 8,
+        "padding": "left",
+        "dataloader_num_proc": 8,
+        "use_fp16": True,
+        "use_4bit": True,
+        "use_qlora": True,
+        "lora_r": 8,
+        "lora_alpha": 16,
+        "lora_target_modules": ["q_proj", "v_proj"],
+        "lora_dropout": 0.05,
+        "debug": False,
     }
-
+l
     dataset_task = create_dataset(dag, "create_dataset")
 
     train_task = train_model(
