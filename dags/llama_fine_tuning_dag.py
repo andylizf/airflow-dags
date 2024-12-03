@@ -424,13 +424,13 @@ for file_path in filtered_dir.rglob("*"):
             requests={
                 'memory': '8Gi',
                 'cpu': '2',
-                'ephemeral-storage': '4Gi',
+                'ephemeral-storage': '20Gi',
                 'nvidia.com/gpu': '1'
             },
             limits={
                 'memory': '8Gi',
                 'cpu': '2',
-                'ephemeral-storage': '4Gi',
+                'ephemeral-storage': '20Gi',
                 'nvidia.com/gpu': '1'
             }
         ),
