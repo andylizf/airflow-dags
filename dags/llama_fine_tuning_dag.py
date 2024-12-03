@@ -384,8 +384,8 @@ for disc_file in discussions_dir.glob("*.json"):
 {FETCHER_CODE}
 
 filtered_items, classification_results = filter_issues_with_llm(
-    issues,
-    discussions,
+    issues[:10],
+    discussions[:10],
     "{model_path}",
     token='{Variable.get("hf-auth-token")}'
 )
