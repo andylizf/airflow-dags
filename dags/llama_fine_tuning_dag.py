@@ -675,7 +675,7 @@ import json
 import os
 from pathlib import Path
 from google.cloud import storage
-from datetime import datetime
+import datetime
 
 # Import fetcher module
 {FETCHER_CODE}
@@ -707,7 +707,7 @@ for file_path in local_output_dir.rglob("*"):
 
 # Create metadata file
 metadata = {{
-    "timestamp": datetime.now().isoformat(),
+    "timestamp": datetime.datetime.now().isoformat(),
     "repository": f"{owner}/{repo}",
     "issues_count": len(issues),
     "discussions_count": len(discussions),
