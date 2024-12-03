@@ -422,15 +422,15 @@ for file_path in filtered_dir.rglob("*"):
         ],
         container_resources=k8s.V1ResourceRequirements(
             requests={
-                'memory': '16Gi',
-                'cpu': '4',
-                'ephemeral-storage': '8Gi',
+                'memory': '8Gi',
+                'cpu': '2',
+                'ephemeral-storage': '4Gi',
                 'nvidia.com/gpu': '1'
             },
             limits={
-                'memory': '16Gi',
-                'cpu': '4',
-                'ephemeral-storage': '8Gi',
+                'memory': '8Gi',
+                'cpu': '2',
+                'ephemeral-storage': '4Gi',
                 'nvidia.com/gpu': '1'
             }
         ),
