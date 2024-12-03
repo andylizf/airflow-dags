@@ -361,7 +361,7 @@ discussions = []
 for issue_file in issues_dir.glob("*.json"):
     with issue_file.open() as f:
         data = json.load(f)
-        issues.append(data)
+        issues.append(flyte_llama.fetcher.Issue(**data))
 
 for disc_file in discussions_dir.glob("*.json"):
     with disc_file.open() as f:
