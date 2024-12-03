@@ -57,7 +57,7 @@ BASE_IMAGE = f"{DEFAULT_REGISTRY}/flyte-llama-qlora"
 # GCS paths
 GCS_BUCKET = "airflow-llama-tuning-skypilot-375902"
 DATASET_PATH = f"gs://{GCS_BUCKET}/llama/dataset"
-MODEL_OUTPUT_PATH = f"gs://{GCS_BUCKET}/llama/models"
+MODEL_OUTPUT_PATH   = f"gs://{GCS_BUCKET}/llama/models"
 
 # Load module code
 TRAIN_CODE = read_module_code(LLAMA_TUNING_DIR / 'train.py')
