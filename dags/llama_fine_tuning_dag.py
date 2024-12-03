@@ -447,6 +447,7 @@ for file_path in filtered_dir.rglob("*"):
                 effect='NoSchedule'
             )
         ],
+        startup_timeout_seconds=300,
         **GCP_VOLUME_CONFIG
     )
 
