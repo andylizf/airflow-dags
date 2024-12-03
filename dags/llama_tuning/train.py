@@ -99,7 +99,6 @@ def train(
     load_model_params = {
         **kwargs,
         "token": hf_auth_token,
-        "use_auth_token": hf_auth_token,
         "torch_dtype": dtype,
         "device_map": config.device_map,
     }
