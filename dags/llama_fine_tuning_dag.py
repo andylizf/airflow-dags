@@ -358,10 +358,22 @@ discussions_dir = local_dataset_path / "discussions"
 issues = []
 discussions = []
 
+from typing import List
+from dataclasses import dataclass
+
+@dataclass
+class Issue:
+    title: str
+    body: str
+    number: int
+    state: str
+    comments: List[str]
+    url: str
+
 for issue_file in issues_dir.glob("*.json"):
     with issue_file.open() as f:
         data = json.load(f)
-        issues.append(flyte_llama.fetcher.Issue(**data))
+        issues.append(Issue(**data))
 
 for disc_file in discussions_dir.glob("*.json"):
     with disc_file.open() as f:
