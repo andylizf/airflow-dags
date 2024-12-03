@@ -51,9 +51,8 @@ def read_module_code(module_path: Path) -> str:
     return ''.join(imported_code + filtered_lines)
 
 # Base configuration
-DEFAULT_REGISTRY = "ghcr.io/unionai-oss"
-IMAGE_TAG = "n0d4nltgwbb_iicwbsyfvq.."
-BASE_IMAGE = f"{DEFAULT_REGISTRY}/flyte-llama-qlora:{IMAGE_TAG}"
+DEFAULT_REGISTRY = "andylizf"
+BASE_IMAGE = f"{DEFAULT_REGISTRY}/flyte-llama-qlora"
 
 # GCS paths
 GCS_BUCKET = "airflow-llama-tuning-skypilot-375902"
