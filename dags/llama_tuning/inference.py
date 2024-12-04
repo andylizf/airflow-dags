@@ -13,7 +13,8 @@ from transformers import (
     AutoModelForCausalLM,
     BitsAndBytesConfig,
 )
-
+from peft import PeftModel
+from typing import Optional, Tuple
 
 @dataclass
 class ServingConfig:
