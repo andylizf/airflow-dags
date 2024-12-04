@@ -474,7 +474,7 @@ for blob in bucket.list_blobs(prefix="{adapter_path}"):
     blob.download_to_filename(str(local_file))
 
 # 在下载 adapter 文件后
-print("\nAdapter files downloaded:")
+print("\\nAdapter files downloaded:")
 for f in adapter_local_path.glob("*"):
     print(f"  {{f}}")
     if f.is_file():
@@ -491,7 +491,7 @@ serving_config = ServingConfig(
 )
 
 # 在加载模型前
-print("\nStarting model loading...")
+print("\\nStarting model loading...")
 print(f"Base model path: {base_model_path}")
 print(f"Adapter path: {{adapter_local_path}}")
 print(f"Device map: {{serving_config.device_map}}")
@@ -500,7 +500,7 @@ print(f"Device map: {{serving_config.device_map}}")
 model, tokenizer = load_pipeline(serving_config)
 
 # 在加载模型后
-print("\nModel loaded successfully")
+print("\\nModel loaded successfully")
 print(f"Model config: {{model.config}}")
 
 # # Add test question
