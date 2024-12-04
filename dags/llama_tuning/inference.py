@@ -40,9 +40,14 @@ def load_pipeline(config):
     )
     tokenizer.pad_token = tokenizer.eos_token
 
+    if torch.cuda.is_available():
+        dtype = torch.bfloat16
+    else:
+        dtype = torch.float32
+
     # load pre-trained model
     load_model_params = {
-        "torch_dtype": torch.float32,
+        "torch_dtype": dtype,
         "device_map": config.device_map,
     }
     if config.use_4bit:
@@ -56,7 +61,7 @@ def load_pipeline(config):
                 llm_int8_has_fp16_weight=False,
                 bnb_4bit_use_double_quant=True,
                 bnb_4bit_quant_type="nf4",
-                bnb_4bit_compute_dtype=torch.float32,
+                bnb_4bit_compute_dtype=dtype,
             ),
         }
 

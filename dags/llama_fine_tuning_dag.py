@@ -3,6 +3,7 @@
 from datetime import timedelta, datetime
 from pathlib import Path
 from typing import List, Optional, Any
+from winsound import Beep
 
 from airflow import DAG
 from airflow.models import Variable
@@ -415,9 +416,107 @@ def generate_answers(
 ) -> KubernetesPodOperator:
     """Generate answers task"""
 
-    system_prompt = """
+    system_prompt = """You are an expert programmer analyzing a feature request for the SkyPilot framework. Break down this feature request into a clear implementation plan.
 
-    """
+IMPORTANT:
+1. Do not include commit hashes, version numbers, or any placeholder text like "Commit hash".
+2. Be concise and to the point, do not include any other information.
+3. Use markdown syntax for code blocks and lists.
+4. Do not write like an email, just write the plan.
+
+Here's an example analysis of a fake feature request:
+----------------
+Feature Request:
+Title: Add timeout parameter for spot job recovery
+Description: When using spot instances, if the instance is preempted, SkyPilot will try to recover indefinitely. We should add a timeout parameter to limit the recovery time.
+
+Analysis:
+1. Current Behavior:
+- Spot recovery loop runs without timeout control:
+```python
+# spot.py
+def recover_spot_job(task: Task):
+    while True:  # Infinite loop without timeout
+        try:
+            return _attempt_spot_recovery(task)
+        except Exception as e:
+            logger.error(f'Recovery failed: {e}')
+            time.sleep(RETRY_INTERVAL)
+```
+- Task class has no timeout configuration:
+```python
+class Task:
+    def __init__(self, spot_policy: Optional[str] = None):
+        self.spot_policy = spot_policy  # No timeout parameter
+```
+- Users can only interrupt recovery manually by killing the process
+
+2. Proposed Solution:
+- Add spot_recovery_timeout parameter to job submission
+- Implement timeout logic in spot recovery loop
+- Provide clear error message when timeout is reached
+
+3. Implementation Plan:
+- Modify spot.py to add timeout parameter and logic
+- Update task.py to include timeout configuration
+- Add timeout handling in recovery loop
+
+4. Code Implementation:
+- Add timeout parameter to Task class:
+```python
+class Task:
+    def __init__(self, spot_recovery_timeout: Optional[int] = None):
+        self.spot_recovery_timeout = spot_recovery_timeout
+```
+
+- Implement timeout logic in spot recovery:
+```python
+def recover_spot_job(task: Task):
+    start_time = time.time()
+    while True:
+        if (task.spot_recovery_timeout and 
+            time.time() - start_time > task.spot_recovery_timeout):
+            raise SpotTimeoutError(
+                f'Spot recovery timeout after {task.spot_recovery_timeout}s')
+        try:
+            return _attempt_spot_recovery(task)
+        except Exception as e:
+            logger.error(f'Recovery failed: {e}')
+```
+
+- Add unit tests:
+```python
+def test_spot_recovery_timeout():
+    task = Task(spot_recovery_timeout=60)
+    with pytest.raises(SpotTimeoutError):
+        recover_spot_job(task)
+```
+
+----------------
+
+Provide a similar detailed analysis with concrete code examples.
+
+1. Current Behavior:
+- Describe current implementation with relevant code snippets in SkyPilot repository
+- Identify limitations in existing code
+- Show where changes will be needed
+
+2. Proposed Solution:
+- Core functionality needed
+- Key benefits
+- Technical requirements
+
+3. Implementation Plan:
+- Components to modify
+- Key steps (max 3)
+- Integration points
+
+4. Code Implementation:
+- Key function/class changes with code examples
+- Integration code
+- Testing approach with example test cases
+
+Beep each section brief and focused. Prioritize practical implementation details."""
 
     return KubernetesPodOperator(
         task_id=task_id,
@@ -452,7 +551,7 @@ for blob in bucket.list_blobs(prefix="{filtered_issues_path}"):
 
 # Load issues
 issues = []
-for issue_file in issues_path.glob("filtered_*.json"):
+for issue_file in issues_path.glob("filtered_issue_*.json"):
     with issue_file.open() as f:
         try:
             issue_data = json.load(f)
@@ -732,7 +831,7 @@ with DAG(
         'output_dir': MODEL_OUTPUT_PATH,
         "data_dir": DATASET_PATH,
         "checkpoint_dir": None,
-        "num_epochs": 5,
+        "num_epochs": 4,
         "batch_size": 4,
         "test_size": 0.001,
         "model_max_length": 1024,
