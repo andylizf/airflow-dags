@@ -517,6 +517,9 @@ for issue_file in issues_path.glob("filtered_issue_*.json"):
         except Exception as e:
             print(f"Error loading {{issue_file}}: {{e}}")
 
+if len(issues) == 0:
+    issues = [{{"number": 0, "url": "https://github.com/skypilot-org/skypilot/issues/test", "title": "How to launch a cluster in SkyPilot", "body": "I want to know how to launch a cluster using SkyPilot. Please provide detailed steps and code examples."}}]
+
 print(f"Loaded {{len(issues)}} issues")
 
 # Download adapter if needed
