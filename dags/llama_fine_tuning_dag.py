@@ -627,14 +627,14 @@ for file_path in output_path.rglob("*"):
         ],
         container_resources=k8s.V1ResourceRequirements(
             requests={
-                'memory': '30Gi',
-                'cpu': '8',
+                'memory': '16Gi',
+                'cpu': '4',
                 'nvidia.com/gpu': '1',
                 'ephemeral-storage': '16Gi'
             },
             limits={
-                'memory': '30Gi',
-                'cpu': '8',
+                'memory': '16Gi',
+                'cpu': '4',
                 'nvidia.com/gpu': '1',
                 'ephemeral-storage': '16Gi'
             }
