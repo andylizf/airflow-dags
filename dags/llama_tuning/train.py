@@ -80,6 +80,7 @@ def train(
     **kwargs,
 ):
     print("Training model...")
+    os.environ["HF_TOKEN"] = hf_auth_token  # 确保环境变量中有 token
 
     # load tokenizer
     tokenizer = AutoTokenizer.from_pretrained(

@@ -3,7 +3,6 @@
 from datetime import timedelta, datetime
 from pathlib import Path
 from typing import List, Optional, Any
-from winsound import Beep
 
 from airflow import DAG
 from airflow.models import Variable
