@@ -639,7 +639,7 @@ import json
 import os
 from pathlib import Path
 from google.cloud import storage
-import datetime
+from datetime import datetime
 
 # Import fetcher module
 {FETCHER_CODE}
