@@ -163,6 +163,7 @@ print("Dataset path: {DATASET_PATH}")"""
         ),
         is_delete_operator_pod=True,
         get_logs=True,
+        startup_timeout_seconds=600,
         **GCP_VOLUME_CONFIG
     )
 
@@ -251,7 +252,7 @@ for file_path in Path(config.output_dir).rglob("*"):
                 effect='NoSchedule'
             )
         ],
-        startup_timeout_seconds=300,
+        startup_timeout_seconds=600,
         **GCP_VOLUME_CONFIG
     )
 
@@ -311,6 +312,7 @@ publish_to_hf_hub(
         ),
         is_delete_operator_pod=True,
         get_logs=True,
+        startup_timeout_seconds=600,
         **GCP_VOLUME_CONFIG
     )
 
@@ -460,7 +462,7 @@ for file_path in filtered_dir.rglob("*"):
                 effect='NoSchedule'
             )
         ],
-        startup_timeout_seconds=300,
+        startup_timeout_seconds=600,
         **GCP_VOLUME_CONFIG
     )
 
@@ -654,6 +656,7 @@ for file_path in output_path.rglob("*"):
                 effect='NoSchedule'
             )
         ],
+        startup_timeout_seconds=600,
         **GCP_VOLUME_CONFIG
     )
 
@@ -742,6 +745,7 @@ print("Data upload complete")
         ),
         is_delete_operator_pod=True,
         get_logs=True,
+        startup_timeout_seconds=600,
         **GCP_VOLUME_CONFIG
     )
 
@@ -819,7 +823,7 @@ with DAG(
         task_id="generate_answers",
         filtered_issues_path="llama/filtered_issues",
         base_model_path="meta-llama/Llama-3.1-8B-Instruct",
-        adapter_path=f"{MODEL_OUTPUT_PATH}/train",
+        adapter_path=f"llama/models/train",
     )
 
     # 更新任务依赖
