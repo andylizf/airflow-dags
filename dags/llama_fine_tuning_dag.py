@@ -515,7 +515,7 @@ print(f"Model config: {{model.config}}")
 system_prompt = '''{system_prompt}'''
 
 answers = []
-for issue in issues:
+for issue in issues[:100]:
     try:
         issue_prompt = f"Title: {{issue['title']}}\\nDescription: {{issue['body']}}\\n"
         full_prompt = system_prompt + "\\n\\n" + issue_prompt
