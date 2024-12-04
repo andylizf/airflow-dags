@@ -629,13 +629,13 @@ for file_path in output_path.rglob("*"):
             requests={
                 'memory': '30Gi',
                 'cpu': '8',
-                'gpu': '1',
+                'nvidia.com/gpu': '1',
                 'ephemeral-storage': '16Gi'
             },
             limits={
                 'memory': '30Gi',
                 'cpu': '8',
-                'gpu': '1',
+                'nvidia.com/gpu': '1',
                 'ephemeral-storage': '16Gi'
             }
         ),
