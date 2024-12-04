@@ -24,15 +24,18 @@ class ServingConfig:
     padding: str = "right"
     device_map: str = "auto"
     use_4bit: bool = False
+    hf_token: Optional[str] = None
 
 
 def load_pipeline(config):
-    # hh.login(token=os.environ["HF_AUTH_TOKEN"])
+    if config.hf_token:
+        hh.login(token=config.hf_token)
 
     tokenizer = AutoTokenizer.from_pretrained(
         config.model_path,
         model_max_length=config.model_max_length,
         padding_side=config.padding,
+        token=config.hf_token,
     )
     tokenizer.pad_token = tokenizer.eos_token
 
@@ -56,17 +59,19 @@ def load_pipeline(config):
             ),
         }
 
+    print(f"Loading model from base model: {config.model_path}")
     model = AutoModelForCausalLM.from_pretrained(
-        config.adapter_path,
+        config.model_path,
         **load_model_params,
-    )
+    ).to("cuda")
 
-    return pipeline(
-        "text-generation",
-        model=model,
-        tokenizer=tokenizer,
-        device_map=config.device_map,
-    )
+    peft_model = PeftModel.from_pretrained(model, config.adapter_path)
+    model = peft_model.merge_and_unload()
+    
+    print(f"Tokenizer vocab size: {len(tokenizer)}")
+    print(f"Model vocab size: {model.config.vocab_size}")
+    
+    return model, tokenizer
 
 
 if __name__ == "__main__":
