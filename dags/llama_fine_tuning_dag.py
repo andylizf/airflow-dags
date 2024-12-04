@@ -256,66 +256,6 @@ for file_path in Path(config.output_dir).rglob("*"):
         **GCP_VOLUME_CONFIG
     )
 
-def publish_model(
-    dag: DAG,
-    task_id: str,
-    model_dir: str,
-    config: dict[str, Any],
-) -> KubernetesPodOperator:
-    """Publish model task"""
-    return KubernetesPodOperator(
-        task_id=task_id,
-        dag=dag,
-        name=task_id,
-        namespace='airflow',
-        image=BASE_IMAGE,
-        cmds=["python", "-c"],
-        arguments=[
-            f"""\
-import sys
-from pathlib import Path
-sys.path.append("/opt/airflow/dags")
-
-from llama_tuning.publish import publish_to_hf_hub
-from llama_tuning.train import TrainerConfig
-from google.cloud import storage
-
-# Download model from GCS
-client = storage.Client()
-bucket = client.bucket("{GCS_BUCKET}")
-local_model_dir = Path("/tmp/model")
-for blob in bucket.list_blobs(prefix="{model_dir}"):
-    local_file = local_model_dir / blob.name.replace("{model_dir}/", "")
-    local_file.parent.mkdir(parents=True, exist_ok=True)
-    blob.download_to_filename(str(local_file))
-
-config = TrainerConfig(**{config})
-
-publish_to_hf_hub(
-    local_model_dir,
-    config,
-    hf_auth_token='{Variable.get("hf-auth-token")}'
-)
-"""
-        ],
-        container_resources=k8s.V1ResourceRequirements(
-            requests={
-                'memory': '10Gi',
-                'cpu': '1',
-                'ephemeral-storage': '64Gi'
-            },
-            limits={
-                'memory': '10Gi',
-                'cpu': '1',
-                'ephemeral-storage': '64Gi'
-            }
-        ),
-        is_delete_operator_pod=True,
-        get_logs=True,
-        startup_timeout_seconds=600,
-        **GCP_VOLUME_CONFIG
-    )
-
 def filter_issues(
     dag: DAG,
     task_id: str,
@@ -493,6 +433,7 @@ import os
 from pathlib import Path
 from google.cloud import storage
 import transformers
+from datetime import datetime
 print(f"Transformers version: {{transformers.__version__}}")
 
 # Set up environment
@@ -532,6 +473,13 @@ for blob in bucket.list_blobs(prefix="{adapter_path}"):
     local_file.parent.mkdir(parents=True, exist_ok=True)
     blob.download_to_filename(str(local_file))
 
+# 在下载 adapter 文件后
+print("\nAdapter files downloaded:")
+for f in adapter_local_path.glob("*"):
+    print(f"  {{f}}")
+    if f.is_file():
+        print(f"  File size: {{f.stat().st_size}} bytes")
+
 # Configure model
 {INFERENCE_CODE}
 
@@ -542,8 +490,18 @@ serving_config = ServingConfig(
     hf_token='{Variable.get("hf-auth-token")}',
 )
 
+# 在加载模型前
+print("\nStarting model loading...")
+print(f"Base model path: {base_model_path}")
+print(f"Adapter path: {{adapter_local_path}}")
+print(f"Device map: {{serving_config.device_map}}")
+
 # Load model and tokenizer
 model, tokenizer = load_pipeline(serving_config)
+
+# 在加载模型后
+print("\nModel loaded successfully")
+print(f"Model config: {{model.config}}")
 
 # # Add test question
 # test_issue = {{
