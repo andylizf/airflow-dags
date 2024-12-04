@@ -326,8 +326,8 @@ for disc_file in discussions_dir.glob("*.json"):
 {FETCHER_CODE}
 
 filtered_items, classification_results = filter_issues_with_llm(
-    issues[:10],
-    discussions[:10],
+    issues,
+    discussions,
     "{model_path}",
     token='{Variable.get("hf-auth-token")}'
 )
@@ -452,7 +452,7 @@ for blob in bucket.list_blobs(prefix="{filtered_issues_path}"):
 
 # Load issues
 issues = []
-for issue_file in issues_path.glob("filtered_issue_*.json"):
+for issue_file in issues_path.glob("filtered_*.json"):
     with issue_file.open() as f:
         try:
             issue_data = json.load(f)
