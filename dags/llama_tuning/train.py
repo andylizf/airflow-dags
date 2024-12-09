@@ -79,7 +79,7 @@ def train(
     **kwargs,
 ):
     print("Training model...")
-    os.environ["HF_TOKEN"] = hf_auth_token  # 确保环境变量中有 token
+    os.environ["HF_TOKEN"] = hf_auth_token
 
     # Setup distributed training
     local_rank = int(os.environ.get("LOCAL_RANK", -1))
@@ -90,7 +90,6 @@ def train(
         init_process_group(backend="nccl")
         torch.cuda.set_device(local_rank)
         print(f"Process {local_rank} using device {torch.cuda.current_device()}")
-
 
     # load tokenizer
     tokenizer = AutoTokenizer.from_pretrained(
@@ -116,6 +115,8 @@ def train(
     # Don't use device_map in distributed mode
     if not is_distributed:
         load_model_params["device_map"] = "auto"
+    else:
+        load_model_params["device_map"] = None
 
     if config.use_4bit:
         load_model_params["quantization_config"] = BitsAndBytesConfig(
@@ -155,7 +156,7 @@ def train(
         print(lora_config)
         model.print_trainable_parameters()
 
-    # Move model to correct device and wrap with DDP after all other modifications
+    # Move model to correct device and wrap with DDP
     if is_distributed:
         model = model.to(local_rank)
         model = DDP(model, device_ids=[local_rank])

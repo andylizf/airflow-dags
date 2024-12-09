@@ -907,7 +907,6 @@ with DAG(
         "model_max_length": 1024,
         "seed": 41,
         "report_to": "wandb",
-        "device_map": "auto",
         "gradient_accumulation_steps": 8,
         "padding": "left",
         "dataloader_num_proc": 8,
