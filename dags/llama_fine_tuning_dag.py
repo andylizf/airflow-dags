@@ -228,18 +228,17 @@ for file_path in Path(config.output_dir).rglob("*"):
         ],
         container_resources=k8s.V1ResourceRequirements(
             requests={
-                'cpu': '4',
-                'memory': '16Gi',
-                'ephemeral-storage': '20Gi',
-                'nvidia.com/gpu': '1'
+                'cpu': '12',
+                'memory': '32Gi',
+                'ephemeral-storage': '40Gi',
+                'nvidia.com/gpu': '8'  # 使用全部 8 个 GPU
             },
             limits={
-                'cpu': '6',
-                'memory': '24Gi',
-                'ephemeral-storage': '20Gi',
-                'nvidia.com/gpu': '1'
-            }
-        ),
+                'cpu': '16',          # 给一些 CPU 弹性
+                'memory': '48Gi',     # 给一些内存弹性
+                'ephemeral-storage': '40Gi',
+                'nvidia.com/gpu': '8'
+            }),
         is_delete_operator_pod=True,
         get_logs=True,
         node_selector={
