@@ -250,6 +250,8 @@ config = TrainerConfig(**{config})
 config.data_dir = str(local_dataset_path)
 config.output_dir = "{MODEL_OUTPUT_PATH}/{task_id}"
 
+time.sleep(3600)
+
 # 使用 torchrun 启动训练，使用 -m 参数
 cmd = [
     "torchrun",
