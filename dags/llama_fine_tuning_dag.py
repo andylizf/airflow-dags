@@ -226,7 +226,7 @@ for file_path in Path(config.output_dir).rglob("*"):
         blob = bucket.blob(blob_path)
         blob.upload_from_filename(str(file_path))"""
         ],
-        resources=k8s.V1ResourceRequirements(
+        container_resources=k8s.V1ResourceRequirements(
             requests={
                 'cpu': '12',
                 'memory': '32Gi',
