@@ -226,7 +226,7 @@ for file_path in Path(config.output_dir).rglob("*"):
         blob = bucket.blob(blob_path)
         blob.upload_from_filename(str(file_path))"""
         ],
-        container_resources=k8s.V1ResourceRequirements(
+        resources=k8s.V1ResourceRequirements(
             requests={
                 'cpu': '12',
                 'memory': '32Gi',
@@ -343,7 +343,7 @@ with (filtered_dir / "classification_results.json").open("w") as f:
 # Save filtered issues
 saved_files = []
 for item in filtered_items:
-    if isinstance(item, flyte_llama.fetcher.Issue):
+    if isinstance(item, Issue):
         output_file = filtered_dir / f"filtered_issue_{{item.number}}.json"
     else:  # Discussion
         output_file = filtered_dir / f"filtered_discussion_{{item.number}}.json"
