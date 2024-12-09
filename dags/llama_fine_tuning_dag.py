@@ -181,8 +181,13 @@ def train_model(
         name=task_id,
         namespace='airflow',
         image=BASE_IMAGE,
-        cmds=["python", "-c"],
+        cmds=["torchrun"],
         arguments=[
+            "--nproc_per_node=8",  # 使用8个 GPU
+            "--master_port=29500",  # 任意未被使用的端口号即可
+            "-m",
+            "python",
+            "-c",
             f"""\
 import os
 from pathlib import Path
