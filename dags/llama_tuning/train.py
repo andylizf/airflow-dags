@@ -271,23 +271,31 @@ def train(
     trainer.save_model(training_args.output_dir)
 
 def main():
+    print("Starting main function...")
     parser = argparse.ArgumentParser(description='Train Llama model')
     parser.add_argument('--config', type=str, required=True, help='Training config as JSON string')
     parser.add_argument('--hf_auth_token', type=str, required=True, help='HuggingFace auth token')
     parser.add_argument('--pretrained_adapter', type=str, default=None, help='Path to pretrained adapter')
     
-    args = parser.parse_args()
-    
-    # 解析配置
-    config = TrainerConfig(**json.loads(args.config))
-    pretrained_adapter = Path(args.pretrained_adapter) if args.pretrained_adapter else None
-    
-    # 调用现有的训练函数
-    train(
-        config=config,
-        pretrained_adapter=pretrained_adapter,
-        hf_auth_token=args.hf_auth_token
-    )
+    try:
+        args = parser.parse_args()
+        print(f"Parsed arguments: {args}")
+        
+        config = TrainerConfig(**json.loads(args.config))
+        print(f"Loaded config: {config}")
+        
+        pretrained_adapter = Path(args.pretrained_adapter) if args.pretrained_adapter else None
+        
+        print("Starting training...")
+        train(
+            config=config,
+            pretrained_adapter=pretrained_adapter,
+            hf_auth_token=args.hf_auth_token
+        )
+        print("Training completed successfully")
+    except Exception as e:
+        print(f"Error in main: {str(e)}")
+        raise
 
 if __name__ == "__main__":
     main()

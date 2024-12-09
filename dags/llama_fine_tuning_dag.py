@@ -192,6 +192,9 @@ from pathlib import Path
 from typing import Optional, Any
 from dataclasses import dataclass
 from google.cloud import storage
+import shlex
+import subprocess
+import os
 
 # Inject train module code
 {TRAIN_CODE}
@@ -232,22 +235,33 @@ cmd = [
 ]
 
 print(f"Starting training with command: {{' '.join(cmd)}}")
-process = subprocess.Popen(
-    cmd,
-    stdout=subprocess.PIPE,
-    stderr=subprocess.STDOUT,
-    universal_newlines=True,
-    bufsize=1
-)
+try:
+    process = subprocess.Popen(
+        cmd,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        universal_newlines=True,
+        bufsize=1,
+        env={{
+            **os.environ,
+            "PYTHONUNBUFFERED": "1"
+        }}
+    )
 
-# 实时输出日志
-for line in process.stdout:
-    print(line, end='')
+    # 实时输出日志
+    while True:
+        line = process.stdout.readline()
+        if not line and process.poll() is not None:
+            break
+        print(line, end='', flush=True)
 
-# 等待进程完成
-process.wait()
-if process.returncode != 0:
-    raise Exception(f"Training failed with return code {{process.returncode}}")
+    # 等待进程完成
+    process.wait()
+    if process.returncode != 0:
+        raise Exception(f"Training failed with return code {{process.returncode}}")
+except Exception as e:
+    print(f"Error during training: {{str(e)}}")
+    raise
 
 # Upload model to GCS
 for file_path in Path(config.output_dir).rglob("*"):
