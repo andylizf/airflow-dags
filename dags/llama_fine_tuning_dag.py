@@ -344,13 +344,13 @@ with (filtered_dir / "classification_results.json").open("w") as f:
 # Save filtered issues
 saved_files = []
 for item in filtered_items:
-    if isinstance(item, dict) and 'number' in item:
-        output_file = filtered_dir / f"filtered_issue_{{item['number']}}.json"
-    else:
-        output_file = filtered_dir / f"filtered_discussion_{{getattr(item, 'number', 'unknown')}}.json"
+    if isinstance(item, flyte_llama.fetcher.Issue):
+        output_file = filtered_dir / f"filtered_issue_{{item.number}}.json"
+    else:  # Discussion
+        output_file = filtered_dir / f"filtered_discussion_{{item.number}}.json"
     
     with output_file.open("w") as f:
-        json.dump(item.__dict__ if not isinstance(item, dict) else item, f, indent=2)
+        json.dump(item.__dict__, f, indent=2) 
     saved_files.append(output_file)
 
 # Save manifest
