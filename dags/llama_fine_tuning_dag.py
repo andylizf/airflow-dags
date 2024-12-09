@@ -225,7 +225,7 @@ dataset_code = r'''{ORIGINAL_DATASET_CODE}'''
 dataset_file = Path('/tmp/dataset.py')
 dataset_file.write_text(dataset_code)
 
-Path('/tmp/init.py').touch()
+Path('/tmp/__init__.py').touch()
 
 {TRAIN_CODE}
 
