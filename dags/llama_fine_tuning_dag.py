@@ -181,15 +181,13 @@ def train_model(
         name=task_id,
         namespace='airflow',
         image=BASE_IMAGE,
-        cmds=["torchrun"],
+        cmds=["python", "-c"],
         arguments=[
-            "--nproc_per_node=8",  # 使用8个 GPU
-            "--master_port=29500",  # 任意未被使用的端口号即可
-            "-m",
-            "python",
-            "-c",
             f"""\
 import os
+import sys
+import json
+import subprocess
 from pathlib import Path
 from typing import Optional, Any
 from dataclasses import dataclass
@@ -197,6 +195,11 @@ from google.cloud import storage
 
 # Inject train module code
 {TRAIN_CODE}
+
+# 首先将训练代码写入文件
+train_code = '''{TRAIN_CODE}'''
+train_file = Path('/tmp/train.py')
+train_file.write_text(train_code)
 
 os.environ["WANDB_API_KEY"] = '{Variable.get("wandb-api-key")}'
 os.environ["WANDB_PROJECT"] = "unionai-flyte-llama"
@@ -218,11 +221,19 @@ config = TrainerConfig(**{config})
 config.data_dir = str(local_dataset_path)
 config.output_dir = "{MODEL_OUTPUT_PATH}/{task_id}"
 
-model = train(
-    config,
-    pretrained_adapter={pretrained_adapter},
-    hf_auth_token='{Variable.get("hf-auth-token")}'
-)
+# 使用 torchrun 启动训练
+cmd = [
+    "torchrun",
+    "--nproc_per_node=8",
+    "--master_port=29500",
+    str(train_file),
+    "--config", json.dumps(asdict(config)),
+    "--hf_auth_token", '{Variable.get("hf-auth-token")}'
+]
+
+process = subprocess.run(cmd, check=True)
+if process.returncode != 0:
+    raise Exception(f"Training failed with return code {{process.returncode}}")
 
 # Upload model to GCS
 for file_path in Path(config.output_dir).rglob("*"):

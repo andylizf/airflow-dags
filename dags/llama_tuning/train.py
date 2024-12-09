@@ -25,6 +25,7 @@ from transformers import BitsAndBytesConfig
 from transformers import DataCollatorForLanguageModeling
 from transformers import Trainer
 from transformers import TrainingArguments
+import argparse
 
 transformers.logging.set_verbosity_debug()
 
@@ -268,3 +269,25 @@ def train(
     eval_results = trainer.evaluate(eval_dataset=dataset_splits["test"])
     print(f"Perplexity: {math.exp(eval_results['eval_loss']):.2f}")
     trainer.save_model(training_args.output_dir)
+
+def main():
+    parser = argparse.ArgumentParser(description='Train Llama model')
+    parser.add_argument('--config', type=str, required=True, help='Training config as JSON string')
+    parser.add_argument('--hf_auth_token', type=str, required=True, help='HuggingFace auth token')
+    parser.add_argument('--pretrained_adapter', type=str, default=None, help='Path to pretrained adapter')
+    
+    args = parser.parse_args()
+    
+    # 解析配置
+    config = TrainerConfig(**json.loads(args.config))
+    pretrained_adapter = Path(args.pretrained_adapter) if args.pretrained_adapter else None
+    
+    # 调用现有的训练函数
+    train(
+        config=config,
+        pretrained_adapter=pretrained_adapter,
+        hf_auth_token=args.hf_auth_token
+    )
+
+if __name__ == "__main__":
+    main()
