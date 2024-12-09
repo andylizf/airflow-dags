@@ -22,7 +22,10 @@ def read_original_code(file_name: str) -> str:
 
 # 初始化原始代码常量
 ORIGINAL_DATALOADER_CODE = read_original_code('dataloader.py')
-ORIGINAL_TRAIN_CODE = read_original_code('train.py')
+ORIGINAL_TRAIN_CODE = read_original_code('train.py').replace(
+    'from llama_tuning.dataloader import',
+    'from .dataloader import'
+)
 ORIGINAL_DATASET_CODE = read_original_code('dataset.py')
 ORIGINAL_PUBLISH_CODE = read_original_code('publish.py')
 ORIGINAL_INFERENCE_CODE = read_original_code('inference.py')
