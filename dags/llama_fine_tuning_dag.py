@@ -186,6 +186,7 @@ def train_model(
             f"""\
 import os
 import sys
+import time
 import json
 import subprocess
 from pathlib import Path
@@ -268,7 +269,12 @@ for file_path in Path(config.output_dir).rglob("*"):
     if file_path.is_file():
         blob_path = f"llama/models/{task_id}/{{file_path.relative_to(config.output_dir)}}"
         blob = bucket.blob(blob_path)
-        blob.upload_from_filename(str(file_path))"""
+        blob.upload_from_filename(str(file_path))
+
+# 添加一个延迟，让我们有时间检查
+print("Training finished, keeping pod alive for debugging...")
+time.sleep(3600)  # 保持 pod 运行一小时
+"""
         ],
         container_resources=k8s.V1ResourceRequirements(
             requests={
