@@ -1,5 +1,6 @@
 """LLama workflows for Airflow."""
 
+
 from datetime import timedelta, datetime
 from pathlib import Path
 from typing import List, Optional, Any
@@ -12,6 +13,21 @@ from kubernetes.client import models as k8s
 # Base paths
 DAGS_DIR = Path(__file__).parent
 LLAMA_TUNING_DIR = DAGS_DIR / 'llama_tuning'
+
+# 读取原始代码文件
+def read_original_code(file_name: str) -> str:
+    """Read original source code without processing imports."""
+    with open(LLAMA_TUNING_DIR / file_name) as f:
+        return f.read()
+
+# 初始化原始代码常量
+ORIGINAL_DATALOADER_CODE = read_original_code('dataloader.py')
+ORIGINAL_TRAIN_CODE = read_original_code('train.py')
+ORIGINAL_DATASET_CODE = read_original_code('dataset.py')
+ORIGINAL_PUBLISH_CODE = read_original_code('publish.py')
+ORIGINAL_INFERENCE_CODE = read_original_code('inference.py')
+ORIGINAL_FETCHER_CODE = read_original_code('fetcher.py')
+
 
 def read_module_code(module_path: Path) -> str:
     """Read module code and handle imports."""
@@ -197,13 +213,16 @@ import shlex
 import subprocess
 import os
 
-# Inject train module code
-{TRAIN_CODE}
-
 # 首先将训练代码写入文件
-train_code = '''{TRAIN_CODE}'''
+train_code = r'''{ORIGINAL_TRAIN_CODE}'''
 train_file = Path('/tmp/train.py')
 train_file.write_text(train_code)
+
+dataset_code = r'''{ORIGINAL_DATASET_CODE}'''
+dataset_file = Path('/tmp/dataset.py')
+dataset_file.write_text(dataset_code)
+
+Path('/tmp/init.py').touch()
 
 os.environ["WANDB_API_KEY"] = '{Variable.get("wandb-api-key")}'
 os.environ["WANDB_PROJECT"] = "unionai-flyte-llama"
