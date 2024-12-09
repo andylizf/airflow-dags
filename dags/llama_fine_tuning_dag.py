@@ -283,7 +283,7 @@ for file_path in Path(config.output_dir).rglob("*"):
                 'ephemeral-storage': '40Gi',
                 'nvidia.com/gpu': '8'
             }),
-        is_delete_operator_pod=True,
+        is_delete_operator_pod=False,
         get_logs=True,
         node_selector={
             'cloud.google.com/gke-nodepool': 'gpu-pool'
