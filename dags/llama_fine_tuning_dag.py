@@ -231,7 +231,21 @@ cmd = [
     "--hf_auth_token", '{Variable.get("hf-auth-token")}'
 ]
 
-process = subprocess.run(cmd, check=True)
+print(f"Starting training with command: {{' '.join(cmd)}}")
+process = subprocess.Popen(
+    cmd,
+    stdout=subprocess.PIPE,
+    stderr=subprocess.STDOUT,
+    universal_newlines=True,
+    bufsize=1
+)
+
+# 实时输出日志
+for line in process.stdout:
+    print(line, end='')
+
+# 等待进程完成
+process.wait()
 if process.returncode != 0:
     raise Exception(f"Training failed with return code {{process.returncode}}")
 
