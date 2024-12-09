@@ -216,16 +216,17 @@ import shlex
 import subprocess
 import os
 
-# 首先将训练代码写入文件
+# 创建模块目录
+module_dir = Path('/tmp/llama_train')
+module_dir.mkdir(parents=True, exist_ok=True)
+(module_dir / "__init__.py").touch()
+
+# 写入训练相关代码
 train_code = r'''{ORIGINAL_TRAIN_CODE}'''
-train_file = Path('/tmp/train.py')
-train_file.write_text(train_code)
+(module_dir / "train.py").write_text(train_code)
 
-dataset_code = r'''{ORIGINAL_DATASET_CODE}'''
-dataset_file = Path('/tmp/dataset.py')
-dataset_file.write_text(dataset_code)
-
-Path('/tmp/__init__.py').touch()
+dataloader_code = r'''{ORIGINAL_DATALOADER_CODE}'''
+(module_dir / "dataloader.py").write_text(dataloader_code)
 
 {TRAIN_CODE}
 
@@ -249,12 +250,12 @@ config = TrainerConfig(**{config})
 config.data_dir = str(local_dataset_path)
 config.output_dir = "{MODEL_OUTPUT_PATH}/{task_id}"
 
-# 使用 torchrun 启动训练
+# 使用 torchrun 启动训练，使用 -m 参数
 cmd = [
     "torchrun",
     "--nproc_per_node=8",
     "--master_port=29500",
-    str(train_file),
+    "-m", "llama_train.train",  # 使用模块路径
     "--config", json.dumps(asdict(config)),
     "--hf_auth_token", '{Variable.get("hf-auth-token")}'
 ]
@@ -270,7 +271,8 @@ try:
         env={{
             **os.environ,
             "PYTHONUNBUFFERED": "1"
-        }}
+        }},
+        cwd="/tmp"  # 设置工作目录
     )
 
     # 实时输出日志
@@ -294,10 +296,6 @@ for file_path in Path(config.output_dir).rglob("*"):
         blob_path = f"llama/models/{task_id}/{{file_path.relative_to(config.output_dir)}}"
         blob = bucket.blob(blob_path)
         blob.upload_from_filename(str(file_path))
-
-# 添加一个延迟，让我们有时间检查
-print("Training finished, keeping pod alive for debugging...")
-time.sleep(3600)  # 保持 pod 运行一小时
 """
         ],
         container_resources=k8s.V1ResourceRequirements(
