@@ -224,6 +224,8 @@ dataset_file.write_text(dataset_code)
 
 Path('/tmp/init.py').touch()
 
+{TRAIN_CODE}
+
 os.environ["WANDB_API_KEY"] = '{Variable.get("wandb-api-key")}'
 os.environ["WANDB_PROJECT"] = "unionai-flyte-llama"
 os.environ["WANDB_RUN_ID"] = "{task_id}"
