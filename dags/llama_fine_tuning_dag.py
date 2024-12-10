@@ -109,7 +109,7 @@ GCP_VOLUME_CONFIG = {
 }
 
 def create_dataset(dag: DAG, task_id: str, additional_urls: Optional[List[str]] = None,
-                   force_create: bool = False) -> KubernetesPodOperator:
+                   force_create: bool = True) -> KubernetesPodOperator:
     """Create dataset task"""
     return KubernetesPodOperator(
         task_id=task_id,
@@ -313,7 +313,7 @@ for file_path in Path(config.output_dir).rglob("*"):
                 'ephemeral-storage': '40Gi',
                 'nvidia.com/gpu': '8'
             }),
-        is_delete_operator_pod=False,
+        is_delete_operator_pod=True,
         get_logs=True,
         node_selector={
             'cloud.google.com/gke-nodepool': 'gpu-pool'
