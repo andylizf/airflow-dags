@@ -478,23 +478,23 @@ for file_path in filtered_dir.rglob("*"):
         ],
         container_resources=k8s.V1ResourceRequirements(
             requests={
-                'memory': '8Gi',
-                'cpu': '2',
-                'ephemeral-storage': '20Gi',
-                'nvidia.com/gpu': '1'
+                'memory': '16Gi',
+                'cpu': '4',
+                'nvidia.com/gpu': '4',
+                'ephemeral-storage': '16Gi'
             },
             limits={
-                'memory': '8Gi',
-                'cpu': '2',
-                'ephemeral-storage': '20Gi',
-                'nvidia.com/gpu': '1'
+                'memory': '16Gi',
+                'cpu': '4',
+                'nvidia.com/gpu': '4',
+                'ephemeral-storage': '16Gi'
             }
         ),
         # is_delete_operator_pod=False,
         is_delete_operator_pod=True,
         get_logs=True,
         node_selector={
-            'cloud.google.com/gke-nodepool': 'gpu-pool'
+            'cloud.google.com/gke-nodepool': 'l4-pool'
         },
         tolerations=[
             k8s.V1Toleration(
@@ -791,20 +791,20 @@ for file_path in output_path.rglob("*"):
             requests={
                 'memory': '16Gi',
                 'cpu': '4',
-                'nvidia.com/gpu': '1',
+                'nvidia.com/gpu': '4',
                 'ephemeral-storage': '16Gi'
             },
             limits={
                 'memory': '16Gi',
                 'cpu': '4',
-                'nvidia.com/gpu': '1',
+                'nvidia.com/gpu': '4',
                 'ephemeral-storage': '16Gi'
             }
         ),
         is_delete_operator_pod=True,
         get_logs=True,
         node_selector={
-            'cloud.google.com/gke-nodepool': 'gpu-pool'
+            'cloud.google.com/gke-nodepool': 'l4-pool'
         },
         tolerations=[
             k8s.V1Toleration(
