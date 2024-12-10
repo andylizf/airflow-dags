@@ -250,7 +250,6 @@ config = TrainerConfig(**{config})
 config.data_dir = str(local_dataset_path)
 config.output_dir = "{MODEL_OUTPUT_PATH}/{task_id}"
 
-time.sleep(3600)
 
 # 使用 torchrun 启动训练，使用 -m 参数
 cmd = [
@@ -287,6 +286,7 @@ try:
     # 等待进程完成
     process.wait()
     if process.returncode != 0:
+        time.sleep(3600)
         raise Exception(f"Training failed with return code {{process.returncode}}")
 except Exception as e:
     print(f"Error during training: {{str(e)}}")
