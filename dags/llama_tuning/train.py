@@ -309,8 +309,8 @@ def train(
         model.load_state_dict(state_dict)
 
     eval_results = trainer.evaluate(eval_dataset=dataset_splits["test"])
-    print(f"Perplexity: {math.exp(eval_results['eval_loss']):.2f}")
     trainer.save_model(training_args.output_dir)
+
 def main():
     print("Starting main function...")
     parser = argparse.ArgumentParser(description='Train Llama model')
