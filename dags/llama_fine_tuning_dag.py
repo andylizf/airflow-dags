@@ -335,15 +335,13 @@ for file_path in Path(config.output_dir).rglob("*"):
                     size_limit='32Gi'
                 )
             ),
-            **GCP_VOLUME_CONFIG.get('volumes', {})
-        ],
+        ] + GCP_VOLUME_CONFIG.get('volumes', []),
         volume_mounts=[
             k8s.V1VolumeMount(
                 name='dshm',
                 mount_path='/dev/shm'
             ),
-            **GCP_VOLUME_CONFIG.get('volume_mounts', {})
-        ],
+        ] + GCP_VOLUME_CONFIG.get('volume_mounts', []),
         env_vars={
             # GKE的默认NVIDIA库路径
             'LD_LIBRARY_PATH': '/usr/local/nvidia/lib64:/usr/local/cuda/lib64',
