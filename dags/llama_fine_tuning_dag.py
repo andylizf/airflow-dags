@@ -303,13 +303,13 @@ for file_path in Path(config.output_dir).rglob("*"):
         container_resources=k8s.V1ResourceRequirements(
             requests={
                 'cpu': '12',
-                'memory': '32Gi',
+                'memory': '64Gi',
                 'ephemeral-storage': '40Gi',
                 'nvidia.com/gpu': '8'  # 使用全部 8 个 GPU
             },
             limits={
                 'cpu': '16',          # 给一些 CPU 弹性
-                'memory': '48Gi',     # 给一些内存弹性
+                'memory': '128Gi',     # 给一些内存弹性
                 'ephemeral-storage': '40Gi',
                 'nvidia.com/gpu': '8'
             }),

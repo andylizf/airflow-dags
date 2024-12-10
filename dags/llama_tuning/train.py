@@ -8,6 +8,7 @@ import math
 import os
 from pathlib import Path
 from typing import List, Optional
+from datetime import datetime
 
 from dataclasses_json import dataclass_json
 from dataclasses_json import DataClassJsonMixin
@@ -26,6 +27,8 @@ from transformers import DataCollatorForLanguageModeling
 from transformers import Trainer
 from transformers import TrainingArguments
 import argparse
+from flytekit.types.resource import Resources
+from flytekit.decorators import task
 
 transformers.logging.set_verbosity_debug()
 
@@ -89,9 +92,14 @@ def train(
     if is_distributed:
         init_process_group(backend="nccl")
         torch.cuda.set_device(local_rank)
-        print(f"Process {local_rank} using device {torch.cuda.current_device()}")
+        if local_rank == 0:
+            print(f"Training with {world_size} GPUs")
 
-    # load tokenizer
+    # Only log to wandb from the main process
+    if local_rank != 0:
+        config.report_to = "none"
+    
+    # Load tokenizer
     tokenizer = AutoTokenizer.from_pretrained(
         config.model_path,
         model_max_length=config.model_max_length,
@@ -112,11 +120,10 @@ def train(
         "torch_dtype": dtype,
     }
     
-    # Don't use device_map in distributed mode
-    if not is_distributed:
-        load_model_params["device_map"] = "auto"
+    if is_distributed:
+        load_model_params["device_map"] = {"": local_rank}
     else:
-        load_model_params["device_map"] = None
+        load_model_params["device_map"] = "auto"
 
     if config.use_4bit:
         load_model_params["quantization_config"] = BitsAndBytesConfig(
@@ -139,6 +146,7 @@ def train(
     if config.use_qlora:
         optim = "paged_adamw_8bit"
         # Enable gradient checkpointing before DDP wrapping
+        model.config.use_cache = False  # Required for gradient checkpointing
         model.gradient_checkpointing_enable()
         model = prepare_model_for_kbit_training(model)
 
@@ -152,14 +160,22 @@ def train(
         )
         model = get_peft_model(model, lora_config)
 
-        print("LORA Config:")
-        print(lora_config)
-        model.print_trainable_parameters()
+        if local_rank == 0:
+            print("LORA Config:")
+            print(lora_config)
+            model.print_trainable_parameters()
 
-    # Move model to correct device and wrap with DDP
+    # Move model to device and wrap with DDP if needed
     if is_distributed:
         model = model.to(local_rank)
-        model = DDP(model, device_ids=[local_rank])
+        torch.distributed.barrier()
+        model = DDP(
+            model, 
+            device_ids=[local_rank],
+            find_unused_parameters=False,
+            gradient_as_bucket_view=True
+        )
+        torch.distributed.barrier()
 
     def tokenize(examples):
         tokens = tokenizer(
@@ -172,16 +188,13 @@ def train(
         return tokens
 
     limit = 5 if config.debug else None
-    dataset = (
-        get_dataset(
-            Path(config.data_dir).expanduser(),
-            num_proc=config.dataloader_num_proc,
-            limit=limit,
-            block_size=config.model_max_length,
-            skip_by=config.model_max_length,
-        )
-        .map(tokenize, batched=True, num_proc=config.dataloader_num_proc)
-    )
+    dataset = (get_dataset(
+        Path(config.data_dir).expanduser(),
+        num_proc=config.dataloader_num_proc,
+        limit=limit,
+        block_size=config.model_max_length,
+        skip_by=config.model_max_length,
+    ).map(tokenize, batched=True, num_proc=config.dataloader_num_proc))
 
     # Remove unnecessary columns
     columns_to_remove = [
@@ -191,16 +204,23 @@ def train(
     dataset = dataset.remove_columns(columns_to_remove)
 
     print(f"Dataset size: {len(dataset)}")
-    dataset_splits = dataset.train_test_split(
-        test_size=config.test_size, seed=config.seed
-    )
+    dataset_splits = dataset.train_test_split(test_size=config.test_size,
+                                              seed=config.seed)
 
     tokenizer.deprecation_warnings["Asking-to-pad-a-fast-tokenizer"] = True
-    data_collator = DataCollatorForLanguageModeling(tokenizer=tokenizer, mlm=False)
+    data_collator = DataCollatorForLanguageModeling(tokenizer=tokenizer,
+                                                    mlm=False)
+
+    # Create a custom subclass of Trainer to prevent automatic gradient checkpointing
+    class CustomTrainer(Trainer):
+        def _wrap_model(self, model, training=True, dataloader=None):
+            if is_distributed:
+                return model
+            return super()._wrap_model(model, training, dataloader)
 
     training_args = TrainingArguments(
         output_dir=config.output_dir,
-        evaluation_strategy="steps",
+        eval_strategy="steps",
         eval_steps=100,
         learning_rate=3e-4,
         weight_decay=0.1,
@@ -223,16 +243,10 @@ def train(
         remove_unused_columns=False,
         local_rank=local_rank,
         ddp_backend="nccl",
+        # Disable gradient checkpointing in training args since we handle it manually
         gradient_checkpointing=False,
+        run_name=f"llama_train_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
     )
-
-    # Create a custom subclass of Trainer to prevent automatic gradient checkpointing
-    class CustomTrainer(Trainer):
-        def _wrap_model(self, model, training=True, dataloader=None):
-            # Do not enable gradient checkpointing here
-            if is_distributed:
-                return model
-            return super()._wrap_model(model, training, dataloader)
 
     trainer = CustomTrainer(
         model=model,
@@ -258,19 +272,47 @@ def train(
         if not subdirs:
             return None
 
-        # Sort directories by modification time (most recent first)
-        latest_checkpoint = max(subdirs, key=os.path.getmtime)
+        # Check if checkpoint files exist
+        for checkpoint_dir in sorted(subdirs, key=os.path.getmtime, reverse=True):
+            if os.path.exists(os.path.join(checkpoint_dir, "pytorch_model.bin")) or \
+               os.path.exists(os.path.join(checkpoint_dir, "model.safetensors")):
+                return checkpoint_dir
+        
+        return None
 
-        return latest_checkpoint
+    # Only the main process should check for checkpoints
+    if local_rank == 0:
+        checkpoint_dir = get_latest_checkpoint(config.output_dir)
+        if checkpoint_dir:
+            print(f"Found checkpoint: {checkpoint_dir}")
+            # Verify checkpoint files exist
+            if not (os.path.exists(os.path.join(checkpoint_dir, "pytorch_model.bin")) or \
+                   os.path.exists(os.path.join(checkpoint_dir, "model.safetensors"))):
+                print("Warning: Checkpoint directory exists but model files are missing")
+                checkpoint_dir = None
+    else:
+        checkpoint_dir = None
 
-    checkpoint_dir = get_latest_checkpoint(config.output_dir)
+    # Ensure all processes use the same checkpoint decision
+    if is_distributed:
+        checkpoint_dir = torch.tensor(checkpoint_dir is not None, device=local_rank)
+        torch.distributed.broadcast(checkpoint_dir, src=0)
+        checkpoint_dir = "./sky_llama/output/checkpoint-376" if checkpoint_dir.item() else None
+
     if checkpoint_dir:
         print(f"Resuming from checkpoint: {checkpoint_dir}")
-    trainer.train(resume_from_checkpoint=checkpoint_dir)
+    
+    # Start training
+    trainer.train(resume_from_checkpoint=None)  # Disable automatic checkpoint loading
+    if checkpoint_dir:
+        # Load checkpoint manually
+        state_dict = torch.load(os.path.join(checkpoint_dir, "pytorch_model.bin"), 
+                              map_location=f"cuda:{local_rank}")
+        model.load_state_dict(state_dict)
+
     eval_results = trainer.evaluate(eval_dataset=dataset_splits["test"])
     print(f"Perplexity: {math.exp(eval_results['eval_loss']):.2f}")
     trainer.save_model(training_args.output_dir)
-
 def main():
     print("Starting main function...")
     parser = argparse.ArgumentParser(description='Train Llama model')
