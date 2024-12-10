@@ -349,7 +349,6 @@ for file_path in Path(config.output_dir).rglob("*"):
             'NVIDIA_DRIVER_CAPABILITIES': 'compute,utility',
             'PYTHONUNBUFFERED': '1',
             "GOOGLE_APPLICATION_CREDENTIALS": "/var/secrets/google/key.json"
-            **os.environ
         },
         # 使用NVIDIA运行时
         security_context=k8s.V1PodSecurityContext(
