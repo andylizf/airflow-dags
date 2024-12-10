@@ -326,7 +326,38 @@ for file_path in Path(config.output_dir).rglob("*"):
             )
         ],
         startup_timeout_seconds=600,
-        **GCP_VOLUME_CONFIG
+        volumes=[
+            # 共享内存
+            k8s.V1Volume(
+                name='dshm',
+                empty_dir=k8s.V1EmptyDirVolumeSource(
+                    medium='Memory',
+                    size_limit='32Gi'
+                )
+            ),
+            **GCP_VOLUME_CONFIG.get('volumes', {})
+        ],
+        volume_mounts=[
+            k8s.V1VolumeMount(
+                name='dshm',
+                mount_path='/dev/shm'
+            ),
+            **GCP_VOLUME_CONFIG.get('volume_mounts', {})
+        ],
+        env_vars={
+            # GKE的默认NVIDIA库路径
+            'LD_LIBRARY_PATH': '/usr/local/nvidia/lib64:/usr/local/cuda/lib64',
+            'NVIDIA_VISIBLE_DEVICES': 'all',
+            'NVIDIA_DRIVER_CAPABILITIES': 'compute,utility',
+            'PYTHONUNBUFFERED': '1',
+            "GOOGLE_APPLICATION_CREDENTIALS": "/var/secrets/google/key.json"
+            **os.environ
+        },
+        # 使用NVIDIA运行时
+        security_context=k8s.V1PodSecurityContext(
+            run_as_user=0,
+            fs_group=0
+        ),
     )
 
 def filter_issues(
