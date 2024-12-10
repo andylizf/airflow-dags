@@ -47,7 +47,7 @@ class PublishConfig(DataClassJsonMixin):
 
 @dataclass
 class TrainerConfig(DataClassJsonMixin):
-    model_path: str = "llama/Llama-3.1-8B-Instruct"
+    model_path: str = "meta-llama/Llama-3.1-8B-Instruct"
     data_dir: str = "./data"
     output_dir: str = "./output"
     checkpoint_dir: Optional[str] = None
