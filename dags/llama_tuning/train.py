@@ -27,8 +27,6 @@ from transformers import DataCollatorForLanguageModeling
 from transformers import Trainer
 from transformers import TrainingArguments
 import argparse
-from flytekit.types.resource import Resources
-from flytekit.decorators import task
 
 transformers.logging.set_verbosity_debug()
 
